@@ -1,0 +1,27 @@
+{
+  "name": "mycastle",
+  "version": "0.1.0",
+  "description": "Personal workspace toolkit: scaffold a work hub and run cross-platform read-only CLIs (Kibana / XXL-Job / Archery / MySQL / repo-changes). Skills are managed by the `skills` CLI.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "mycastle": "dist/cli.js" },
+  "main": "dist/cli.js",
+  "files": ["dist", "templates"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "hello": "tsx src/hello.ts"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.6",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "keywords": ["cli", "workspace", "devkit", "kibana", "xxl-job", "archery", "mysql", "yunxiao"],
+  "license": "MIT"
+}

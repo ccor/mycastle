@@ -1,0 +1,8 @@
+{
+  "root": "D:\\proj\\myorg",
+  "repos": [
+    { "name": "acme-board", "path": "common/acme-board" },
+    { "name": "track-service", "path": "app-group/track-service" },
+    { "name": "demo-app", "path": "sample/demo-app" }
+  ]
+}
