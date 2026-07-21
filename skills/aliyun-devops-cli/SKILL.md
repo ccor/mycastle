@@ -15,7 +15,15 @@ Yunxiao authenticates with a **Personal Access Token (PAT)**, passed through env
 
 ### 1. Install the Alibaba Cloud CLI + verify the devops plugin
 
-Install the `aliyun` CLI for the user's OS (official guide: Windows / Linux / macOS), then confirm the Yunxiao plugin loads:
+Pick the install path for the user's OS:
+
+- **macOS** (easiest): `brew install aliyun-cli`
+- **Linux**: download `aliyun-cli-linux-*-amd64.tgz` from [GitHub releases](https://github.com/aliyun/aliyun-cli/releases), extract, and move `aliyun` onto `$PATH` (e.g. `/usr/local/bin`).
+- **Windows**: download the Windows `.exe`/installer from [GitHub releases](https://github.com/aliyun/aliyun-cli/releases); open a **new** terminal afterward so `$PATH` refreshes.
+
+Full official guide: <https://www.alibabacloud.com/help/en/cli/install-update-alibaba-cloud-cli>. `aliyun version` shows what's installed; upgrade the same way you installed (or `brew upgrade aliyun-cli` on macOS).
+
+Then confirm the Yunxiao plugin loads:
 
 ```
 aliyun devops version
@@ -23,7 +31,7 @@ aliyun devops version
 
 It should print something like `aliyun-cli-devops 0.5.0 (...)`.
 - `aliyun: command not found` → CLI not installed, or installed but not on PATH (on Windows, refresh PATH by opening a new terminal after install).
-- `devops` not recognized → the plugin didn't load (rare on recent versions); reinstall via the official installer.
+- `devops` not recognized → the plugin didn't load (rare on recent versions — it ships bundled with current releases); reinstall/upgrade via the official installer or `brew upgrade aliyun-cli`.
 
 ### 2. Get a Personal Access Token (PAT)
 

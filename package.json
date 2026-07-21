@@ -23,5 +23,14 @@
     "typescript": "^5.7.0"
   },
   "keywords": ["cli", "workspace", "devkit", "kibana", "xxl-job", "archery", "mysql", "yunxiao"],
-  "license": "MIT"
+  "license": "MIT",
+  "author": "ccor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ccor/mycastle.git"
+  },
+  "homepage": "https://github.com/ccor/mycastle#readme",
+  "bugs": {
+    "url": "https://github.com/ccor/mycastle/issues"
+  }
 }

@@ -1,75 +1,84 @@
 ---
 name: xxljob-ops
-description: Reconcile xxl-job scheduled tasks between source code and a target environment's console. Use this when someone wants to check which coded xxl-job handlers (@JobHandler / @XxlJob) are actually scheduled in an env (dev/test/prd), find code-but-not-configured or console-but-not-coded handlers, or spot handler-name mismatches between code and console. Triggers on "核对 xxljob", "任务调度状态核对", "扫代码里的 xxl-job 任务", "哪些 job 真在环境里跑", "代码和控制台对不上", "xxljob reconcile". This skill v1 = scan + reconcile. (Viewing job run logs and troubleshooting with kibana app logs are future extensions, not yet built.)
+description: Reconcile xxl-job scheduled tasks between Java source code and a target environment's admin console. Use this when someone wants to check which coded xxl-job handlers (@JobHandler / @XxlJob) are actually scheduled in an environment, find code-but-not-configured or console-but-not-coded handlers, or spot handler-name mismatches between code and console. Triggers on "核对 xxljob", "任务调度状态核对", "扫代码里的 xxl-job 任务", "哪些 job 真在环境里跑", "代码和控制台对不上", "xxljob reconcile", "reconcile xxl-job handlers", "which xxl-job jobs are actually scheduled", "code vs console xxl-job". Scope (current): offline source scan + live console snapshot + reconcile. Viewing job run logs and cross-referencing application logs are future extensions, not yet built.
 ---
 
-# xxl-job 代码 ↔ 控制台核对
+# xxl-job code ↔ console reconciliation
 
-## 最容易踩的点(lead-with)
+## The one thing that trips everyone up
 
-代码里有 `@JobHandler` / `@XxlJob` **不等于**控制台真的配了调度。cron、启停、分片、路由全在 xxl-job 控制台,**代码里看不到执行频率**。本 skill 的价值就是**两边核对**,把三类问题挖出来:代码有但控制台没配(未部署/废弃)、控制台有但代码扫描没见(新增/他处)、handler 名两边对不上(契约不一致)。
+A handler declared in code (`@JobHandler` / `@XxlJob`) **does not mean** it's actually scheduled in the console. Cron schedule, start/stop, sharding, and routing strategy all live in the xxl-job admin console — **you cannot see execution frequency from the source code alone**. This skill's value is **reconciling the two sides**, surfacing three classes of problem: coded-but-not-configured (undeployed / abandoned), configured-but-not-coded (new / lives elsewhere), and handler-name mismatch between the two (contract drift).
 
-两个工具,各管一边,都只出 JSON(汇总由本 skill/agent 做,见 `tools/repo-changes.md` 的 collector 契约):
+Two `mycastle` tools, one per side, both emit JSON. The reconcile join itself is done by you / the agent — the tools only collect:
 
-- **代码侧**:`npm run xxljob-scan -- --root <src-root>`(离线扫源码,见 `tools/xxljob-scan.md`)。
-- **控制台侧**:`npm run xxljob -- snapshot --env <env>`(在线查控制台,见 `tools/xxljob.md`)。
+- **Code side**: `mycastle xxljob-scan --root <src-root>` — offline Java source scan.
+- **Console side**: `mycastle xxljob snapshot --env <env>` — live admin-console snapshot.
 
-## v1 流程:扫描 + 核对
+## Prerequisites & versioning
 
-### 1. 收输入
+- `mycastle` on `$PATH` (`npm install -g mycastle`). Check with `mycastle --version`; upgrade the tools with `mycastle self-update`.
+- Each tool's `--help` is the **ground truth for the version you have installed** — when a flag or output field matters, read it rather than trusting this doc (the doc lags the code). Tools and this skill version independently: tools come from npm (`mycastle self-update`), this skill from GitHub (`skills update`).
+- Console access needs an xxl-job admin endpoint + credentials in `.myws/xxljob.config.json`. `mycastle xxljob envs` lists configured env names without leaking secrets.
+- The scanner is **offline**: it touches no keys, no console, no config file — pure source analysis. Same Java-only assumptions as `mycastle xxljob-scan --help`.
 
-需要两样:**源码根目录 `--root`** + **目标环境 `--env`**(环境名在 `.myws/xxljob.config.json`)。
+## Workflow: scan + reconcile
 
-- 不确定有哪些环境?`npm run xxljob -- envs`(不泄密)。
-- 缺 `.myws/xxljob.config.json` 或 `--root` 不对 → 引导到 `tools/xxljob.md`(env/配置)或 `tools/xxljob-scan.md`(root)。
+### 1. Gather inputs
 
-### 2. 扫代码(代码侧 handler 集)
+You need two things: a **source root `--root`** and a **target env `--env`** (env names live in `.myws/xxljob.config.json`).
+
+- Not sure which envs are configured? `mycastle xxljob envs` (no secrets leaked).
+- `--env` accepts a single name, a comma list, or `all`; a default env may be configured.
+- Missing config or wrong `--root`? See `mycastle xxljob --help` (env/config) or `mycastle xxljob-scan --help` (root/globs/api).
+
+### 2. Scan code (code-side handler set)
 
 ```bash
-npm run xxljob-scan --silent -- --root <src-root> --compact
+mycastle xxljob-scan --root <src-root> --compact
 ```
 
-留意输出里 `valueForm: "unresolved:..."` 的条目——常量引用没在同文件解析出来,要人工跟一下(看那个类的 `static final String`)。`valueForm: "constant:..."` 是正常已解析。
+Watch entries whose `valueForm` is `unresolved:...` — a constant reference the scanner couldn't resolve within the same file; chase that class's `static final String` by hand. `valueForm: "constant:..."` is a successfully resolved constant; `valueForm: "literal"` is a plain string. (`unrecognized:...` is a rare other form — worth a manual glance, since the regex scan can also pick up annotations sitting inside comments.)
 
-### 3. 取环境状态(控制台侧)
+### 3. Pull env state (console-side handler set)
 
 ```bash
-npm run xxljob --silent -- snapshot --env <env>
+mycastle xxljob snapshot --env <env>
 ```
 
-(全量执行器+任务,推荐。)或 `executors list` + 逐执行器 `jobs list`。得到环境侧 handler + `{cron, 描述, triggerStatus, jobGroup}`,同一 handler 多注册(分片/多参数)会有多条。
+One call fetches every executor + job (recommended). It prints JSON to stdout **and** saves a timestamped copy under the config dir (`.../xxljob/snapshots/<env>/<timestamp>.json`) for reproducibility. Alternatively, page manually: `mycastle xxljob executors list`, then per-executor `mycastle xxljob jobs list`. Either way you get the env-side handlers plus `{cron, description, triggerStatus, jobGroup}`; the same handler registered multiple times (sharding / multiple param sets) yields multiple rows.
 
-### 4. 核对 join(本 step 由你/agent 做,不进工具)
+### 4. Reconcile join (this step is you / the agent, not a tool)
 
-键 = **handler 名,大小写不敏感**(handler value 是控制台与代码的契约;但两边可能差大小写,所以按小写 join,差异单独标)。分四类:
+Key = **handler name, case-insensitive**. The handler value is the contract between console and code, but the two sides can differ in casing, so join on the lowercased name and flag case-only diffs separately. Four buckets:
 
-| 类别 | 含义 | 建议标记 |
+| Bucket | Meaning | Suggested flag |
 |---|---|---|
-| 两边都有 | 已配置 | 带 `ON`/`停用`、cron、描述;多注册逐条列 |
-| 代码有、控制台无 | 疑似未部署/废弃 | `未配置` |
-| 控制台有、代码扫描无 | 新增 / 在别的模块 / 常量未解析 | `未见于扫描` |
-| 仅大小写不同 | 契约不一致 | `契约不一致`(handler value 两边应一致) |
+| Both sides | configured | with `ON`/`disabled`, cron, description; one row per registration |
+| In code, not in console | likely undeployed / abandoned | `unconfigured` |
+| In console, not in scan | new / in another module / unresolved constant | `not seen in scan` |
+| Case-only difference | contract drift | `contract mismatch` (handler value should match verbatim on both sides) |
 
-> 别把「文档抄录错误」当成契约不一致:本 skill 直接读代码(scan)和控制台(snapshot),两边都是真值;真·契约不一致 = 代码里的 value 和控制台里的 value 字面不同。
+> Don't mistake a "doc transcription error" for contract mismatch: this skill reads code (scan) and console (snapshot) directly — both are ground truth. A *real* contract mismatch means the literal value in code differs from the literal value in the console.
 
-### 5. 呈现
+### 5. Present
 
-核对报告表,建议列:`handler | 描述 | cron | 状态 | api | 类名`。能从 scan 输出的 `package`(如 `...jobhandler.outbound`)推断业务域就分组。同一 handler 多注册:单元格内换行(`<br>`)或分行,按 job id 升序。
+A reconciliation report table; suggested columns: `handler | description | cron | status | api | class`. Group by business domain if the scan's `package` suggests one (e.g. `...jobhandler.outbound`). Same handler with multiple registrations: newline within a cell (`<br>`) or one row per registration, ordered by job id ascending.
 
-两种落档,按上下文选:
+Two landing options, pick by context:
 
-- **打印报告**(默认):直接给用户看。
-- **标注到目标 inventory 文档**(如 `docs/projects/<proj>/<proj>-scheduled-jobs.md`):钉死**时间戳 + 数据源**——代码扫描日期、控制台快照 `takenAt`、env、执行器名。示例见 `docs/projects/<proj>/<proj>-scheduled-jobs.md` §3。
+- **Print the report** (default): show it to the user inline.
+- **Annotate an inventory doc** (e.g. a project's scheduled-jobs doc of your choice): pin **timestamp + data source** — code scan date, console snapshot `takenAt`, env, executor name — so a later reader can tell how stale it is.
 
-### 6. 复查(常见坑)
+### 6. Review (common pitfalls)
 
-- **dev `/joblog` 服务端 504**:只影响"查日志",**不影响核对**(核对只用 snapshot,不查 log)。
-- **auth / 连通失败**:透传 `XxljobApiError`(`status`/`body`/`url`/`env`),指引到 `tools/xxljob.md`。
-- **scan 0 命中**:多半 `--root`/`--glob`/`--api` 给错;先 `npm run xxljob-scan -- --root <root>` 看 stderr 提示。
+- **`/joblog` server-side timeout on some envs**: affects **log viewing only**, *not* reconciliation — reconciliation uses `snapshot`, never logs.
+- **Auth / connectivity failure**: surfaces as `XxljobApiError` (`status` / `body` / `url` / `env`); see `mycastle xxljob --help`.
+- **Scan returns 0 hits**: usually a wrong `--root` / `--glob` / `--api`; run `mycastle xxljob-scan --root <root>` and read stderr.
+- **`jobs log` without `--group`**: the tool rejects it — run `mycastle xxljob executors list` first to get the group id.
 
-## 后续扩展(尚未实现)
+## Future extensions (not yet built)
 
-- **查任务运行日志**(`jobs log <id> --group N --env`):见 `tools/xxljob.md`。⚠️ dev 实测 `/joblog` 504(>60s),test/prd 正常。
-- **排查任务问题**(xxljob 调度日志 + kibana 应用实例日志):⚠️ kibana 工具当前只管 Spaces/Data-Views、**查不了应用日志文档**(未接 ES `_search`);应用日志步骤在工具扩展前走 Kibana UI 手动。
+- **View job run logs**: `mycastle xxljob jobs log <id> --group N --env <env>` (see `mycastle xxljob --help`). ⚠️ `/joblog` can time out (>60s) on some envs — verify on yours before relying on it for bulk log pulls.
+- **Troubleshoot a task** (xxl-job schedule logs + application instance logs): needs a log-search capability this kit doesn't bundle yet; until then, application-log steps are manual via your log UI.
 
-> 这两块的细化流程待补到 `references/logs.md` 与 `references/troubleshoot.md`;v1 不建。
+> Detailed flows for these will be added under `references/` when built; not in the current scope.
