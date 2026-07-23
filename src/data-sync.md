@@ -45,7 +45,7 @@ npm run data-sync -- copy ... --dry-run
 |---|---|---|
 | `--src archery\|mysql` | 必填 | 源端类型 |
 | `--src-env <name>` | — | archery 源:在 `.myws/archery.config.json` 里配的环境名 |
-| `--src-instance "<中文名>"` | — | archery 源:实例名(先跑 `npm run archery -- instances --env prd` 拿到) |
+| `--src-instance "<instance>"` | — | archery 源:实例名(先跑 `npm run archery -- instances --env prd` 拿到) |
 | `--src-conn <name>` | — | mysql 源:`.myws/db.config.json` 命名连接 |
 | `--src-db <name>` | 必填 | 源库 |
 | `--dst-conn <name>` | 必填 | 目标命名连接 |
