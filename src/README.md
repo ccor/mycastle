@@ -14,6 +14,7 @@
 | `mycastle xxljob-scan` | `xxljob-scan.ts` | 离线扫描 Java 源码的 xxl-job handler 声明 → 结构化 JSON | [xxljob-scan.md](xxljob-scan.md) |
 | `mycastle archery` | `archery.ts` | Archery 数据端只读 CLI(会话 / Schema 浏览 / 工单 / 查询历史 / SELECT 执行,多环境) | [archery.md](archery.md) |
 | `mycastle mysql` | `mysql-helper.ts` | MySQL 查看 + DDL 执行 CLI(库 / 表 / 表结构 / 执行 SQL 脚本,连接走 `DB_CONN_URL` 或 `.myws/db.config.json`) | [mysql-helper.md](mysql-helper.md) |
+| `mycastle data-sync` | `data-sync.ts` | 表数据同步:从 Archery 或 MySQL 源 → MySQL 目标(truncate/append,游标分页,自动建表) | [data-sync.md](data-sync.md) |
 
 工作区运行:`mycastle <command> [args]`(在 `.myws/` 配置就绪后)。开发直跑:`tsx src/<name>.ts`。
 
@@ -24,7 +25,7 @@
 | `cli.ts` | 命令路由:init / self-update + 工具名 → `src/<tool>.js` |
 | `commands/` | `init.ts`(脚手架 + 调 `skills` CLI 装技能) / `self-update.ts` |
 | `lib/platform.ts` | 跨平台公共工具(OS 判断、配置目录 `configDir`、`ensureDir`),所有工具复用 |
-| `lib/*.ts` | 各工具 helper(`kibana-client` / `kibana-config` / `xxljob-client` / `xxljob-config` / `xxljob-session` / `archery-client` / `archery-config` / `archery-session` / `mysql-client` / `mysql-config` / `repos-config` / `git-collect` / `state`) |
+| `lib/*.ts` | 各工具 helper(`kibana-client` / `kibana-config` / `xxljob-client` / `xxljob-config` / `xxljob-session` / `archery-client` / `archery-config` / `archery-session` / `mysql-client` / `mysql-config` / `repos-config` / `git-collect` / `state` / `data-sync`) |
 
 ## 开发约定
 

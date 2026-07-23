@@ -28,6 +28,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         read-only Archery DB portal CLI
   mysql <cmd>           MySQL inspection + DDL execution CLI
+  data-sync copy <opts> copy table data Source → mysql Dest
 
 Options:
   -h, --help            show this help (or per-command help)
@@ -52,6 +53,7 @@ const TOOLS: Record<string, () => Promise<{ run: (a: string[]) => unknown }>> = 
   "xxljob-scan": () => import("./xxljob-scan.js"),
   archery: () => import("./archery.js"),
   mysql: () => import("./mysql-helper.js"),
+  "data-sync": () => import("./data-sync.js"),
 };
 
 async function main(): Promise<void> {
