@@ -1,6 +1,6 @@
 {
   "name": "mycastle",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Personal workspace toolkit: scaffold a work hub and run cross-platform read-only CLIs (Kibana / XXL-Job / Archery / MySQL / repo-changes). Skills are managed by the `skills` CLI.",
   "type": "module",
   "engines": { "node": ">=20" },
