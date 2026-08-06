@@ -16,7 +16,7 @@ cd my-workspace
 mycastle env                   # print your shell/OS/toolchain
 ```
 
-`init` creates `docs/` + `.myws/`, writes template files (README/AGENTS/CLAUDE/.gitignore), and installs skills into `.agents/skills/` + `.claude/skills/` via the `skills` CLI (`npx skills add <owner>/mycastle --all`; best-effort — failure only warns).
+`init` creates `docs/` + `.myws/` and writes template files (README/AGENTS/CLAUDE/.gitignore). Skills install is **optional** — add `--skills` to install into `.agents/skills/` + `.claude/skills/` via the `skills` CLI (`npx skills add ccor/mycastle --all`; best-effort — failure only warns), or run that command later.
 
 ## Commands
 

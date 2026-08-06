@@ -19,7 +19,7 @@ This file provides guidance to agents working on the **mycastle** package itself
 
 ### Skills: GitHub is the source of truth
 
-Skills live in **this repo's `skills/`** directory — the GitHub source the `skills` CLI pulls from (`skills add <owner>/mycastle`). They are **not** bundled into the npm tarball (`skills/` is absent from `files` in `package.json`), so editing a skill does NOT require an npm release: commit and push to GitHub, then `skills update` (or `npx skills@latest add <owner>/mycastle --all`) in each workspace. The CLI tracks each install with `skillFolderHash` in `.skill-lock.json` and warns before overwriting local edits. `init` runs `skills add` for you as a best-effort step (failure only warns).
+Skills live in **this repo's `skills/`** directory — the GitHub source the `skills` CLI pulls from (`skills add ccor/mycastle`). They are **not** bundled into the npm tarball (`skills/` is absent from `files` in `package.json`), so editing a skill does NOT require an npm release: commit and push to GitHub, then `skills update` (or `npx skills@latest add ccor/mycastle --all`) in each workspace. The CLI tracks each install with `skillFolderHash` in `.skill-lock.json` and warns before overwriting local edits. `init --skills` runs `skills add` for you (opt-in; failure only warns) — `init` alone does not install skills.
 
 ### Templates
 

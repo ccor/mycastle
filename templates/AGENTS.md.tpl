@@ -30,7 +30,7 @@ mycastle --help                # full command list
 
 ## mycastle
 
-This workspace is managed by the **mycastle** npm package. Skills are installed and tracked by the [`skills`](https://github.com/vercel-labs/skills) CLI (records in `.skill-lock.json`) — run `npx skills@latest add <owner/repo> --all` to (re)install, `skills update` to refresh. Tool state lives under the per-user data dir: Windows `%LOCALAPPDATA%\mycastle`, Unix `~/.config/mycastle`.
+This workspace is managed by the **mycastle** npm package. Skills are installed and tracked by the [`skills`](https://github.com/vercel-labs/skills) CLI (records in `.skill-lock.json`) — run `npx skills@latest add ccor/mycastle --all` to (re)install, `skills update` to refresh. Tool state lives under the per-user data dir: Windows `%LOCALAPPDATA%\mycastle`, Unix `~/.config/mycastle`.
 
 ## External repos
 
