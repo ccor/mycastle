@@ -71,6 +71,14 @@ Publish (`npm publish`) only when a packed install checks out clean. See also th
 
 The package contains **no secrets**. Consumers keep credentials in their workspace's gitignored `.myws/` dir or env vars. The `.example` files under `templates/examples/` document the schemas.
 
+**Rule: never read credential files raw.** Do not cat/read/grep `.myws/*.config.json` or `.env` — file contents flow into the conversation context and out to model servers. Enumerate with the redacted commands instead:
+
+- `mycastle mysql conns` — connections: name/host/port/user/database, password always `"***"`
+- `mycastle archery envs` / `mycastle xxljob envs` — envs: name + url + username, never passwords
+- `mycastle kibana envs` — envs: name + url + auth kind, never keys/passwords
+
+Read a credential file only when the user explicitly asks for it and accepts the exposure. The workspace-facing copy of this rule ships in `templates/AGENTS.md.tpl`; each tool doc carries a ⚠️ note with the same command list.
+
 ## Shell encoding on Windows (PowerShell UTF-8)
 
 The bash tool invokes PowerShell **non-interactively**, so `$PROFILE` is NOT loaded and the default output encoding is GB2312 (CodePage 936) — non-ASCII output gets corrupted.

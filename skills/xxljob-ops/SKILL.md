@@ -18,16 +18,16 @@ Two `mycastle` tools, one per side, both emit JSON. The reconcile join itself is
 
 - `mycastle` on `$PATH` (`npm install -g mycastle`). Check with `mycastle --version`; upgrade the tools with `mycastle self-update`.
 - Each tool's `--help` is the **ground truth for the version you have installed** — when a flag or output field matters, read it rather than trusting this doc (the doc lags the code). Tools and this skill version independently: tools come from npm (`mycastle self-update`), this skill from GitHub (`skills update`).
-- Console access needs an xxl-job admin endpoint + credentials in `.myws/xxljob.config.json`. `mycastle xxljob envs` lists configured env names without leaking secrets.
+- Console access needs an xxl-job admin endpoint + credentials in `.myws/xxljob.config.json`. `mycastle xxljob envs` lists env name + url + username (never passwords) — never read the config file raw; its credentials would leak into your context.
 - The scanner is **offline**: it touches no keys, no console, no config file — pure source analysis. Same Java-only assumptions as `mycastle xxljob-scan --help`.
 
 ## Workflow: scan + reconcile
 
 ### 1. Gather inputs
 
-You need two things: a **source root `--root`** and a **target env `--env`** (env names live in `.myws/xxljob.config.json`).
+You need two things: a **source root `--root`** and a **target env `--env`** (run `mycastle xxljob envs` to list them — never read `.myws/xxljob.config.json` raw: its credentials would leak into your context).
 
-- Not sure which envs are configured? `mycastle xxljob envs` (no secrets leaked).
+- Not sure which envs are configured? `mycastle xxljob envs` (name + url + username, never passwords).
 - `--env` accepts a single name, a comma list, or `all`; a default env may be configured.
 - Missing config or wrong `--root`? See `mycastle xxljob --help` (env/config) or `mycastle xxljob-scan --help` (root/globs/api).
 

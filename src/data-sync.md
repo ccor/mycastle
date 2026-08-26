@@ -17,6 +17,8 @@
 - `.myws/archery.config.json` —— archery 源用(envs/url/账号/密码)
 - `.myws/db.config.json` —— mysql 源 + mysql 目标用(命名连接)
 
+> ⚠️ 枚举环境/连接用 `mycastle archery envs` / `mycastle mysql conns`(输出脱敏,不含密码),不要直接读取这两份配置文件的原文。
+
 ## 2. 用法
 
 ```powershell

@@ -25,7 +25,7 @@
 
 - 仓库清单与文档 → `docs/`
 - 工具命令 → `mycastle <command>`（`mycastle --help` 查看全部）
-- 凭据配置 → `.myws/*.config.json`（参考 `.myws/*.example.json`）
+- 凭据配置 → `.myws/*.config.json`（参考 `.myws/*.example.json`）；枚举环境/连接用 `mycastle … envs` / `mycastle mysql conns`，不要读文件原文
 - 更新技能 → `skills update`（首次安装：`npx skills@latest add ccor/mycastle --all`）
 
 ## 约定

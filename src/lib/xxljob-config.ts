@@ -1,5 +1,6 @@
 // xxljob-config.ts — load .myws/xxljob.config.json and resolve the target env(s).
 // Real URLs/credentials live ONLY in this gitignored file; never in code or flags.
+// Never return these values to stdout; enumerate via the redacted `envs` command.
 
 import fs from "node:fs";
 import path from "node:path";

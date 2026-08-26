@@ -42,10 +42,12 @@
 
 > 先不知道要不要认证?只填 `url`,跑一次 `status`(见下):通就是免认证可用,`401` 就是必须带凭据。
 
+> ⚠️ **不要直接读取 `.myws/kibana.config.json` 来枚举环境**——文件内容(含 API Key/密码)会进入 agent 上下文并发往模型服务端。枚举用 `mycastle kibana envs`:输出每个环境的 name/url/basePath/auth 方式(`apiKey`/`basic`/`none`),永不输出 key、用户名或密码。
+
 ## 2. 用法
 
 ```powershell
-mycastle kibana envs                                              # 列出已配置的环境名(不泄密)
+mycastle kibana envs                                              # 列出环境名 + URL + 认证方式(不含 key/密码)
 mycastle kibana status --env dev                                  # 连通性 / 认证探针
 mycastle kibana spaces list --env dev                             # 列出所有空间
 mycastle kibana spaces get marketing --env dev                    # 查单个空间

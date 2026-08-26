@@ -3,7 +3,7 @@
 //   mycastle kibana <command> [args] [--env dev|test|prd|all|a,b] [options]
 //
 // Commands:
-//   envs                    list configured env names (no secrets)
+//   envs                    list envs: name + url + auth kind (never keys/passwords)
 //   status                  GET /api/status (connectivity / auth probe)
 //   spaces list             list all spaces
 //   spaces get <id>         get one space
@@ -20,6 +20,7 @@ import {
   type KibanaConfig,
   type KibanaEnvConfig,
 } from "./lib/kibana-config.js";
+import { redactUrlCredentials } from "./lib/redact.js";
 
 interface CliArgs {
   rest: string[];
@@ -35,7 +36,7 @@ Usage:
   mycastle kibana <command> [args] [options]
 
 Commands:
-  envs                    list configured env names (no secrets)
+  envs                    list envs: name + url + auth kind (never keys/passwords)
   status                  GET /api/status (connectivity / auth probe)
   spaces list             list all spaces
   spaces get <id>         get one space
@@ -160,11 +161,28 @@ export async function run(argv: string[]): Promise<void> {
     process.exit(2);
   }
 
-  // "envs" lists configured env names only — no live connection, no secrets printed.
+  // "envs" lists names + redacted url + auth KIND — no live connection; keys,
+  // usernames and passwords are never printed (auth mirrors resolveAuth's picks).
   if (command === "envs") {
     const cfg = loadKibanaConfig({ configPath: args.configPath });
-    const envs = Object.keys(cfg.envs);
-    print({ default: cfg.default ?? envs[0] ?? null, envs }, args.compact);
+    const names = Object.keys(cfg.envs);
+    const def = cfg.default && names.includes(cfg.default) ? cfg.default : (names[0] ?? null);
+    const envs = names.map((name) => {
+      const envCfg = cfg.envs[name]!;
+      const auth = envCfg.apiKey
+        ? "apiKey"
+        : envCfg.username && envCfg.password
+          ? "basic"
+          : "none";
+      return {
+        name,
+        url: redactUrlCredentials(envCfg.url),
+        basePath: envCfg.basePath,
+        auth,
+        isDefault: name === def,
+      };
+    });
+    print({ default: def, envs }, args.compact);
     return;
   }
 

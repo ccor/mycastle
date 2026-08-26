@@ -27,10 +27,12 @@
 
 > 密钥绝不进命令行(无 `--password` flag);只从本配置文件读。
 
+> ⚠️ **不要直接读取 `.myws/xxljob.config.json` 来枚举环境**——文件内容(含密码)会进入 agent 上下文并发往模型服务端。枚举用 `mycastle xxljob envs`:输出每个环境的 name/url/username(URL 内嵌的凭证会被剥除),永不输出密码。
+
 ## 2. 用法
 
 ```powershell
-mycastle xxljob envs                         # 列出已配置的环境名(不泄密)
+mycastle xxljob envs                         # 列出环境名 + URL + 用户名(不含密码)
 mycastle xxljob login --env dev              # 登录并持久化 cookie
 mycastle xxljob status --env dev             # 连通性 / 认证探针
 mycastle xxljob executors list --env dev     # 执行器列表

@@ -6,13 +6,14 @@
 //   show-databases                     list user databases (system DBs filtered out)
 //   show-tables [database]             list tables in a database
 //   describe <db.table | table>        show column definitions of a table
+//   conns                              list configured connections (password masked)
 //
 // Connection: DB_CONN_URL env var (highest priority) or .myws/db.config.json.
 
 import process from "node:process";
 import fs from "node:fs";
 import path from "node:path";
-import { resolveConnection } from "./lib/mysql-config.js";
+import { listConnections, resolveConnection } from "./lib/mysql-config.js";
 import {
   MysqlHelper,
   splitSqlStatements,
@@ -40,6 +41,7 @@ Commands:
   show-tables [database]             list tables in a database
   describe <db.table | table>        show column definitions of a table
   execute <file.sql>                 run a SQL script (DDL/migration); fail-fast per statement
+  conns                              list connections: name/host/port/user/database (password always "***"; no live connection)
 
 Options:
   --db <name>        default database (overrides the one in the connection URL)
@@ -54,6 +56,7 @@ Connection (highest priority first):
   .myws/db.config.json:
     { "url": "mysql://..." }                                            # single connection
     { "default": "primary", "connections": { "primary": { "url": "mysql://..." } } }
+  Enumerate with "mycastle mysql conns" — never read .myws/db.config.json raw.
 
 Table target: <database>.<table>, or bare <table> with --db <database>.
 execute: statements run on ONE connection, sequentially, fail-fast (DDL auto-commits).
@@ -123,11 +126,18 @@ export async function run(argv: string[]): Promise<void> {
   }
 
   const [command = "", ...cmdArgs] = args.rest;
-  const known = new Set(["show-databases", "show-tables", "describe", "execute"]);
+  const known = new Set(["show-databases", "show-tables", "describe", "execute", "conns"]);
   if (!known.has(command)) {
     console.error(HELP);
     console.error(`error: unknown command: ${command}`);
     process.exit(2);
+  }
+
+  // "conns" lists connections with passwords masked — no live connection needed;
+  // lets agents enumerate without reading .myws/db.config.json raw.
+  if (command === "conns") {
+    print(listConnections({ configPath: args.configPath }), args.compact);
+    return;
   }
 
   const resolved = resolveConnection({ connName: args.conn, configPath: args.configPath });

@@ -34,5 +34,5 @@
 - import 用 `.js` 后缀(NodeNext/ESM 要求;源码虽是 `.ts`,写 `from "./lib/x.js"`)。
 - 路径一律用 `node:path` 的 `path.join(...)`,**不要手拼** `/` 或 `\`。
 - 平台相关分支统一放 `lib/platform.ts`,业务工具保持平台无关。
-- 密钥 / 令牌只从环境变量或工作区 `.myws/*.config.json` 读(包内不含任何密钥)。
+- 密钥 / 令牌只从环境变量或工作区 `.myws/*.config.json` 读(包内不含任何密钥);枚举类命令(`envs` / `conns`)只输出脱敏摘要,工具输出不得包含密钥。
 - 工具**只采集、输出结构化 JSON,不做摘要**(由 agent 写概要;详见 [repo-changes.md](repo-changes.md))。

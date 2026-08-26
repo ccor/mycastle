@@ -38,11 +38,19 @@ This workspace is managed by the **mycastle** npm package. Skills are installed 
 
 ## Config files (all gitignored, under .myws/)
 
+**Rule: never read these files (or `.env`) raw.** Cat/reading/grepping them puts plaintext credentials into your conversation context and sends them to model servers. Enumerate with the redacted commands instead:
+
+- `mycastle mysql conns` — connections: name/host/port/user/database, password always `"***"`
+- `mycastle archery envs` / `mycastle xxljob envs` — envs: name + url + username, never passwords
+- `mycastle kibana envs` — envs: name + url + auth kind, never keys/passwords
+
+Only read a credential file when the user explicitly asks for it and accepts the exposure.
+
 - `.myws/repos.config.json` — repo-changes machine-specific paths. Copy `.myws/repos.config.example.json`.
 - `.myws/xxljob.config.json` — XXL-Job multi-env URLs + credentials.
 - `.myws/archery.config.json` — Archery multi-env URLs + credentials.
 - `.myws/db.config.json` — MySQL connection URLs (or set `DB_CONN_URL` env var).
-- `.env` — credentials/secrets. Read secrets **only** from environment variables; never hardcode or paste tokens into commands (they leak to shell history).
+- `.env` — credentials/secrets. Read secrets **only** from environment variables; never hardcode or paste tokens into commands (they leak to shell history), and never read this file raw either.
 
 ## Shell encoding on Windows (PowerShell UTF-8)
 

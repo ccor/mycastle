@@ -26,10 +26,12 @@
 
 > 密钥绝不进命令行(无 `--password` flag);只从本配置文件读。
 
+> ⚠️ **不要直接读取 `.myws/archery.config.json` 来枚举环境**——文件内容(含密码)会进入 agent 上下文并发往模型服务端。枚举用 `mycastle archery envs`:输出每个环境的 name/url/username(URL 内嵌的凭证会被剥除),永不输出密码。
+
 ## 2. 用法
 
 ```powershell
-mycastle archery envs                                                       # 列出已配置的环境名(不泄密)
+mycastle archery envs                                                       # 列出环境名 + URL + 用户名(不含密码)
 mycastle archery login --env test                                           # 登录并持久化会话
 mycastle archery status --env test                                          # 连通性 / 认证探针
 mycastle archery instances --env test                                       # 当前账号可访问的实例(can_read,默认)

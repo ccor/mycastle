@@ -1,4 +1,4 @@
-# MySQL 查看 + DDL 执行 CLI（show-databases / show-tables / describe / execute）
+# MySQL 查看 + DDL 执行 CLI（conns / show-databases / show-tables / describe / execute）
 
 > 代码:`mysql-helper.ts` + `lib/mysql-client.ts` + `lib/mysql-config.ts`
 
@@ -52,6 +52,8 @@ mysql://user:password@host:port/database?charset=utf8mb4
 
 > `.myws/db.config.json` 已 gitignore;schema 与占位示例只在本节,不建 `.example`。
 
+> ⚠️ **不要直接读取 `.myws/db.config.json`(或任何含凭证的文件)来枚举连接**——文件内容会进入 agent 上下文并发往模型服务端。枚举一律用 `mycastle mysql conns`:输出 name/host/port/user/database,密码恒为 `"***"`;`DB_CONN_URL` 环境变量生效时显示单条 `fromEnv: true` 条目(配置文件被忽略);URL 解析失败的连接降级为 `error` 条目,不影响其余条目。
+
 ## 2. 用法
 
 ```powershell
@@ -65,6 +67,10 @@ mycastle mysql show-tables                                 # 用连接 URL 里�
 mycastle mysql describe mydb.items                    # 表结构:<db>.<table>
 mycastle mysql describe items --db mydb               # 等价(bare table + --db)
 mycastle mysql describe items                                # 用连接 URL 里的 database
+
+# 枚举连接(不建连接;密码恒 "***")
+mycastle mysql conns
+mycastle mysql conns --compact
 
 # 执行 SQL 脚本(DDL / 迁移)
 mycastle mysql execute docs/.../foo.ddl.sql --conn dev          # 执行,失败即停
@@ -101,6 +107,18 @@ describe items --db mydb     # 等价
 ## 3. JSON 输出示例
 
 ```jsonc
+// conns(密码恒 "***";URL 解析失败的连接降级为 error 条目)
+{
+  "source": "config",
+  "configPath": "/path/to/.myws/db.config.json",
+  "default": "test",
+  "connections": [
+    { "name": "test", "fromEnv": false, "isDefault": true,  "host": "10.0.0.1", "port": 3306, "user": "user", "database": "db_test", "password": "***" },
+    { "name": "bad",  "fromEnv": false, "isDefault": false, "error": "Invalid DB_CONN_URL (no host): ..." }
+  ]
+}
+// DB_CONN_URL 环境变量生效时:source 为 "env",单条 { "name": "DB_CONN_URL", "fromEnv": true, ... }
+
 // show-databases
 { "connection": "DB_CONN_URL", "databases": ["app", "mydb", "logs"] }
 

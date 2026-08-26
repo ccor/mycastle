@@ -3,7 +3,7 @@
 //   mycastle archery <command> [args] [--env test|all|a,b] [options]
 //
 // Commands:
-//   envs                              list configured env names (no secrets)
+//   envs                              list envs: name + url + username (never passwords)
 //   login / logout                    login (persist session) / logout (clear session)
 //   status                            connectivity / auth probe
 //   instances [--tag can_read|can_execute|can_audit|can_modify]   instances the current user can access (default can_read)
@@ -19,6 +19,7 @@
 
 import { loadArcheryConfig, resolveEnvs, type ArcheryConfig } from "./lib/archery-config.js";
 import { ArcheryClient, INSTANCE_TAGS, type InstanceTag } from "./lib/archery-client.js";
+import { redactUrlCredentials } from "./lib/redact.js";
 
 interface CliArgs {
   rest: string[];
@@ -34,7 +35,7 @@ Usage:
   mycastle archery <command> [args] [options]
 
 Commands:
-  envs                              list configured env names (no secrets)
+  envs                              list envs: name + url + username (never passwords)
   login / logout                    login (persist session) / logout (clear session)
   status                            connectivity / auth probe
   instances [--tag T]               instances the current user can access (T = can_read|can_execute|can_audit|can_modify; default can_read)
@@ -229,11 +230,19 @@ export async function run(argv: string[]): Promise<void> {
     process.exit(2);
   }
 
-  // "envs" lists configured env names only — no live connection, no secrets printed.
+  // "envs" lists names + redacted url + username — no live connection, no
+  // passwords printed; agents never need to read the config file raw.
   if (command === "envs") {
     const cfg = loadArcheryConfig({ configPath: args.configPath });
-    const envs = Object.keys(cfg.envs);
-    print({ default: cfg.default ?? envs[0] ?? null, envs }, args.compact);
+    const names = Object.keys(cfg.envs);
+    const def = cfg.default && names.includes(cfg.default) ? cfg.default : (names[0] ?? null);
+    const envs = names.map((name) => ({
+      name,
+      url: redactUrlCredentials(cfg.envs[name]!.url),
+      username: cfg.envs[name]!.username,
+      isDefault: name === def,
+    }));
+    print({ default: def, envs }, args.compact);
     return;
   }
 
