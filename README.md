@@ -1,6 +1,6 @@
 # mycastle
 
-Personal workspace toolkit — scaffold a work hub and run cross-platform read-only CLIs. Skill management is delegated to the [`skills`](https://github.com/vercel-labs/skills) CLI.
+Personal workspace toolkit — scaffold a work hub and run cross-platform CLIs. Read-only by default; every mutating path is opt-in (`--yes` / `--apply`). Skill management is delegated to the [`skills`](https://github.com/vercel-labs/skills) CLI.
 
 ## Install
 
@@ -32,7 +32,7 @@ Tools (run "mycastle <tool> --help" for details):
   kibana <cmd>          read-only Kibana CLI
   xxljob <cmd>          read-only XXL-Job admin CLI
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
-  archery <cmd>         read-only Archery DB portal CLI
+  archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: submit/execute/cancel need --yes)
   mysql <cmd>           MySQL inspection + DDL execution CLI
 ```
 

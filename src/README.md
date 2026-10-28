@@ -12,7 +12,7 @@
 | `mycastle kibana` | `kibana.ts` | Kibana REST API 只读 CLI(空间 / data views) | [kibana.md](kibana.md) |
 | `mycastle xxljob` | `xxljob.ts` | XXL-Job admin 只读 CLI(会话 / 执行器 / 任务 / 快照,多环境) | [xxljob.md](xxljob.md) |
 | `mycastle xxljob-scan` | `xxljob-scan.ts` | 离线扫描 Java 源码的 xxl-job handler 声明 → 结构化 JSON | [xxljob-scan.md](xxljob-scan.md) |
-| `mycastle archery` | `archery.ts` | Archery 数据端只读 CLI(会话 / Schema 浏览 / 工单 / 查询历史 / SELECT 执行,多环境) | [archery.md](archery.md) |
+| `mycastle archery` | `archery.ts` | Archery 数据端 CLI(会话 / Schema 浏览 / 工单查询·提交·执行·等待 / 查询历史 / SELECT 执行,多环境;写路径默认 dry-run,`--yes` 才生效) | [archery.md](archery.md) |
 | `mycastle mysql` | `mysql-helper.ts` | MySQL 查看 + DDL 执行 CLI(库 / 表 / 表结构 / 执行 SQL 脚本,连接走 `DB_CONN_URL` 或 `.myws/db.config.json`) | [mysql-helper.md](mysql-helper.md) |
 | `mycastle data-sync` | `data-sync.ts` | 表数据同步:从 Archery 或 MySQL 源 → MySQL 目标(truncate/append,游标分页,自动建表) | [data-sync.md](data-sync.md) |
 

@@ -22,7 +22,7 @@ mycastle changes -- --help     # repo-changes flags
 mycastle kibana -- status      # Kibana read-only CLI
 mycastle xxljob -- envs        # XXL-Job read-only CLI
 mycastle xxljob-scan -- --root <src-root>   # offline-scan a Java source root for xxl-job handlers → JSON
-mycastle archery -- envs       # Archery read-only CLI
+mycastle archery -- envs       # Archery CLI (reads are read-only; ticket writes need --yes)
 mycastle mysql -- show-databases  # MySQL inspection + DDL CLI
 skills update                  # refresh skills installed in .agents/ + .claude/
 mycastle --help                # full command list

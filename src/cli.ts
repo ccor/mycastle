@@ -26,7 +26,7 @@ Tools (run "mycastle <tool> --help" for details):
   kibana <cmd>          read-only Kibana CLI
   xxljob <cmd>          read-only XXL-Job admin CLI
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
-  archery <cmd>         read-only Archery DB portal CLI
+  archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: --yes)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   data-sync copy <opts> copy table data Source → mysql Dest
 

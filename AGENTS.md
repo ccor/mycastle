@@ -4,7 +4,7 @@ This file provides guidance to agents working on the **mycastle** package itself
 
 ## What this repository is
 
-**mycastle** is an npm package: a personal workspace toolkit. It (a) scaffolds workspaces (`init`) and (b) ships cross-platform read-only CLIs (Kibana / XXL-Job / Archery / MySQL / repo-changes). Skill management is delegated to the [`skills`](https://github.com/vercel-labs/skills) CLI — skills live in this repo's `skills/` dir (the GitHub source `skills add` pulls from) and are **not** bundled into the npm tarball. Workspaces are *separate* repos created by `mycastle init`; this repo is the package source.
+**mycastle** is an npm package: a personal workspace toolkit. It (a) scaffolds workspaces (`init`) and (b) ships cross-platform CLIs (Kibana / XXL-Job / Archery / MySQL / repo-changes) — **read-only by default; every mutating path is opt-in** behind an explicit confirmation flag (`--yes` for archery workflow actions, `--apply` for yapi writes). Skill management is delegated to the [`skills`](https://github.com/vercel-labs/skills) CLI — skills live in this repo's `skills/` dir (the GitHub source `skills add` pulls from) and are **not** bundled into the npm tarball. Workspaces are *separate* repos created by `mycastle init`; this repo is the package source.
 
 ## Architecture
 
