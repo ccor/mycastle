@@ -30,6 +30,7 @@ Tools (run "mycastle <tool> --help" for details):
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   data-sync copy <opts> copy table data Source → mysql Dest
+  table-sync <cmd>      diff two archery envs / generate manual sync SQL (read-only)
 
 Options:
   -h, --help            show this help (or per-command help)
@@ -56,6 +57,7 @@ const TOOLS: Record<string, () => Promise<{ run: (a: string[]) => unknown }>> = 
   prometheus: () => import("./prometheus.js"),
   mysql: () => import("./mysql-helper.js"),
   "data-sync": () => import("./data-sync.js"),
+  "table-sync": () => import("./table-sync.js"),
 };
 
 async function main(): Promise<void> {

@@ -14,6 +14,7 @@
 | `mycastle xxljob-scan` | `xxljob-scan.ts` | 离线扫描 Java 源码的 xxl-job handler 声明 → 结构化 JSON | [xxljob-scan.md](xxljob-scan.md) |
 | `mycastle archery` | `archery.ts` | Archery 数据端 CLI(会话 / Schema 浏览 / 工单查询·提交·执行·等待 / 查询历史 / SELECT 执行,多环境;写路径默认 dry-run,`--yes` 才生效) | [archery.md](archery.md) |
 | `mycastle prometheus` | `prometheus.ts` | Prometheus HTTP API 只读 CLI(瞬时/区间 PromQL / series·labels·values / targets,多实例,auth 支持 none/basic/apiKey→Bearer) | [prometheus.md](prometheus.md) |
+| `mycastle table-sync` | `table-sync.ts` | 对比两环境表数据(diff)+ 生成手动执行的同步 SQL(gen-sql,full 全量 / missing 只插缺失;两侧走 archery 只读) | [table-sync.md](table-sync.md) |
 | `mycastle mysql` | `mysql-helper.ts` | MySQL 查看 + DDL 执行 CLI(库 / 表 / 表结构 / 执行 SQL 脚本,连接走 `DB_CONN_URL` 或 `.myws/db.config.json`) | [mysql-helper.md](mysql-helper.md) |
 | `mycastle data-sync` | `data-sync.ts` | 表数据同步:从 Archery 或 MySQL 源 → MySQL 目标(truncate/append,游标分页,自动建表) | [data-sync.md](data-sync.md) |
 

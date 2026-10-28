@@ -35,6 +35,7 @@ Tools (run "mycastle <tool> --help" for details):
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: submit/execute/cancel need --yes)
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
   mysql <cmd>           MySQL inspection + DDL execution CLI
+  table-sync <cmd>      diff two archery envs / generate manual sync SQL (read-only)
 ```
 
 ## Update
