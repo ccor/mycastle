@@ -1,5 +1,6 @@
 // kibana-client.ts — minimal fetch-based Kibana REST API client (read-only).
-// Auth (none / api key / basic) is resolved from config fields; secrets never touch argv.
+// Auth (none / api key / basic) is resolved from config fields or env; secrets never touch argv.
+// Never return credentials to stdout; enumerate instances via the redacted `envs` command.
 //
 // Consumed by src/kibana.ts (CLI) and importable from any other script:
 //   import { KibanaClient } from "./lib/kibana-client.js";
@@ -78,6 +79,36 @@ export interface DataView {
   [key: string]: unknown;
 }
 
+// --- log search (space-scoped Elasticsearch passthrough) --------------------
+
+/** Loose shape of an Elasticsearch `_search` response (fields optional — versions differ). */
+export interface EsSearchResponse {
+  took?: number;
+  timed_out?: boolean;
+  hits?: {
+    total?: number | { value: number; relation: string };
+    max_score?: number | null;
+    hits?: Array<{
+      _index?: string;
+      _id?: string;
+      _score?: number | null;
+      _source?: Record<string, unknown>;
+      [key: string]: unknown;
+    }>;
+  };
+  aggregations?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface SpaceSearchParams {
+  /** Kibana space id. Omit for the default space (no `/s/` prefix). */
+  space?: string;
+  /** Index or index pattern, e.g. "my-service*". */
+  index: string;
+  /** Full Elasticsearch search body (query / sort / size / aggs ...). */
+  body: unknown;
+}
+
 // --- helpers ---------------------------------------------------------------
 
 function toBase64(s: string): string {
@@ -87,26 +118,27 @@ function toBase64(s: string): string {
     : btoa(s);
 }
 
+/** Normalize an API key credential: "id:api_key" -> base64; a ready token passes through. */
+export function toApiKeyToken(apiKey: string): string {
+  return apiKey.includes(":") ? toBase64(apiKey) : apiKey;
+}
+
+/** Resolve auth from generic source fields (env vars or config-file env entry). */
+export function resolveAuth(src: KibanaAuthSource): KibanaAuth {
+  const apiKey = src.apiKey;
+  if (apiKey) return { kind: "apiKey", token: toApiKeyToken(apiKey) };
+  const username = src.username;
+  const password = src.password;
+  if (username && password) return { kind: "basic", username, password };
+  return { kind: "none" };
+}
+
 function authFromEnv(env: NodeJS.ProcessEnv): KibanaAuth {
   return resolveAuth({
     apiKey: env.KIBANA_API_KEY,
     username: env.KIBANA_USERNAME,
     password: env.KIBANA_PASSWORD,
   });
-}
-
-/** Resolve auth from generic source fields (env vars or config-file env entry). */
-export function resolveAuth(src: KibanaAuthSource): KibanaAuth {
-  const apiKey = src.apiKey;
-  if (apiKey) {
-    // "id:api_key" -> base64; a ready token (no colon) -> used as-is.
-    const token = apiKey.includes(":") ? toBase64(apiKey) : apiKey;
-    return { kind: "apiKey", token };
-  }
-  const username = src.username;
-  const password = src.password;
-  if (username && password) return { kind: "basic", username, password };
-  return { kind: "none" };
 }
 
 function buildUrl(baseUrl: string, basePath: string, path: string): string {
@@ -206,6 +238,17 @@ export class KibanaClient {
   /** Generic GET escape hatch — call any read endpoint. */
   get<T>(path: string): Promise<T> {
     return this.request<T>("GET", path);
+  }
+
+  /**
+   * POST /s/{space}/elasticsearch/{index}/_search — the same Elasticsearch
+   * passthrough the Kibana UI (Discover) uses, scoped to one space.
+   * Read-only: this is the only POST surface the client exposes.
+   */
+  search<T = EsSearchResponse>(opts: SpaceSearchParams): Promise<T> {
+    const prefix = opts.space ? `/s/${encodeURIComponent(opts.space)}` : "";
+    const index = encodeURIComponent(opts.index); // `*` is left as-is — fine for ES
+    return this.request<T>("POST", `${prefix}/elasticsearch/${index}/_search`, opts.body);
   }
 
   // --- read-only convenience methods --------------------------------------
