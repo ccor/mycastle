@@ -8,12 +8,15 @@
 //   envs                              list envs: name + url + username (never passwords)
 //   login / logout                    login (persist session) / logout (clear session)
 //   status                            connectivity / auth probe
-//   instances [--tag can_read|can_execute|can_audit|can_modify]   instances the current user can access (default can_read)
+//   instances [--tag can_read|can_execute|can_write|can_audit|can_modify]         instances the current user can access (default can_read)
+//   instances --group <name|id> [--tag T]   instances of one group (submit-page view; default tag can_write = ticket-submittable)
 //   workflow list [--status --instance --group --from --to --search --limit --offset]
 //   workflow groups                   groups usable for submit (from /submitsql/ dropdown)
 //   workflow sqlcheck --instance <name|id> --db <db> (--sql '<sql>' | --sql-file <path>)
 //   workflow submit   --instance <name|id> --db <db> --group-id N --name '<ticket>' (--sql | --sql-file <path>) [--backup] [--demand-url U] [--yes]
 //   workflow content  --workflow-id N  audited statements of a ticket
+//   workflow execute  --workflow-id N [--yes] [--wait [--interval S] [--max-wait S]]
+//   workflow wait     --workflow-id N [--interval S] [--max-wait S]  poll to a terminal status (resumable)
 //   querylog list [--limit --offset --search]
 //   databases   --instance <name>
 //   tables      --instance <name> --db <db>
@@ -32,6 +35,7 @@ import {
   INSTANCE_TAGS,
   stripNonTicketStatements,
   type InstanceTag,
+  type WorkflowWaitResult,
 } from "./lib/archery-client.js";
 import { redactUrlCredentials } from "./lib/redact.js";
 
@@ -54,7 +58,12 @@ Commands:
   envs                              list envs: name + url + username (never passwords)
   login / logout                    login (persist session) / logout (clear session)
   status                            connectivity / auth probe
-  instances [--tag T]               instances the current user can access (T = can_read|can_execute|can_audit|can_modify; default can_read)
+  instances [--tag T]               instances the current user can access (T = can_read|can_execute|can_write|can_audit|can_modify; default can_read)
+  instances --group <name|id> [--tag T]
+                                    instances of one group — the /submitsql/ submit view
+                                    (default tag can_write = ticket-submittable; these ids
+                                    are authoritative for workflow submit and may differ
+                                    from the query view above, e.g. RDS masters)
   workflow list [--status S] [--instance <name|id>] [--group <name|id>] [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--search Q] [--limit N] [--offset N]
   workflow groups                   groups usable for workflow submit (name -> id)
   workflow sqlcheck --instance <name|id> --db <db> (--sql '<sql>' | --sql-file <path>)
@@ -64,9 +73,15 @@ Commands:
                                     WITHOUT --yes: dry-run (audit only, no ticket);
                                     audit errors/critical abort submission
   workflow content --workflow-id N  audited statements of an existing ticket
-  workflow execute --workflow-id N [--mode auto|manual] [--yes]
+  workflow execute --workflow-id N [--mode auto|manual] [--yes] [--wait]
                                     run the audited SQL now (detail-page form);
-                                    without --yes: dry-run only
+                                    without --yes: dry-run only; --wait keeps polling
+                                    until a terminal status (--interval S --max-wait S)
+  workflow wait    --workflow-id N [--interval S] [--max-wait S]
+                                    poll a ticket until terminal (workflow_finish /
+                                    workflow_abort); resumable — a finished ticket
+                                    returns on the first poll. Progress lines go to
+                                    stderr; the final snapshot JSON goes to stdout
   workflow cancel  --workflow-id N [--remark '<why>'] [--yes]
                                     abort a pending workflow (detail-page form)
   querylog list [--limit N] [--offset N] [--search Q]
@@ -157,16 +172,36 @@ function num(v: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** Resolve --instance (name or numeric id) to the numeric instance id. */
-async function resolveInstanceId(client: ArcheryClient, nameOrId: string): Promise<number> {
+/** Resolve --instance (name or numeric id) to the numeric instance id.
+ *  Lookup order: numeric passthrough → user query view (can_execute/can_read) →
+ *  group can_write view (submit-only instances such as RDS masters, which never
+ *  appear in the query view; requires submitGroupId, e.g. --group-id on submit). */
+async function resolveInstanceId(
+  client: ArcheryClient,
+  nameOrId: string,
+  submitGroupId?: number,
+): Promise<number> {
   if (/^\d+$/.test(nameOrId)) return Number.parseInt(nameOrId, 10);
   for (const tag of ["can_execute", "can_read"] as InstanceTag[]) {
     const env = await client.instances.list(tag);
     const hit = env.data.find((i) => i.instance_name === nameOrId);
     if (hit) return hit.id;
   }
+  if (submitGroupId !== undefined) {
+    const group = (await client.workflow.groups()).find((g) => g.id === submitGroupId);
+    if (group) {
+      const env = await client.instances.byGroup(group.name, "can_write");
+      const hit = env.data.find((i) => i.instance_name === nameOrId);
+      if (hit) return hit.id;
+    }
+  }
   throw new Error(
-    `instance "${nameOrId}" not found for env=${client.env} (list via: mycastle archery instances)`,
+    `instance "${nameOrId}" not found for env=${client.env} ` +
+      (submitGroupId !== undefined
+        ? "(searched query view + group can_write view)"
+        : "(query view only; for submit-only instances like masters, add --group-id N " +
+          "so the group can_write view is searched)") +
+      `. List submit targets via: mycastle archery instances --group <group-name>`,
   );
 }
 
@@ -224,9 +259,23 @@ async function runEnv(
       return client.status();
     case "instances": {
       const f = parseFlags(cmdArgs);
-      const tag = f.tag ?? "can_read";
+      const tag = f.tag ?? (f.group !== undefined ? "can_write" : "can_read");
       if (!INSTANCE_TAGS.includes(tag as InstanceTag)) {
         throw new Error(`invalid --tag "${tag}"; one of: ${INSTANCE_TAGS.join(", ")}`);
+      }
+      // --group: the /submitsql/ submit view (POST /group/instances/) — instances of
+      // one group under one tag; can_write lists ticket-submittable targets (masters).
+      if (f.group !== undefined) {
+        const groups = await client.workflow.groups();
+        const gid = num(f.group);
+        const group =
+          gid !== undefined ? groups.find((g) => g.id === gid) : groups.find((g) => g.name === f.group);
+        if (!group) {
+          throw new Error(
+            `group "${f.group}" not found; available: ${groups.map((g) => `${g.name}=${g.id}`).join(", ")}`,
+          );
+        }
+        return client.instances.byGroup(group.name, tag as InstanceTag);
       }
       return client.instances.list(tag as InstanceTag);
     }
@@ -275,9 +324,9 @@ async function runEnv(
             "usage: workflow submit --instance <name|id> --db <db> --group-id N --name '<ticket>' " +
             "(--sql '<sql>' | --sql-file <path>) [--backup] [--demand-url U] [--yes]";
           if (!f.instance || !f.db || !f.name || !f["group-id"]) throw new Error(usage);
-          const instanceId = await resolveInstanceId(client, f.instance);
-          const fullSql = ticketSqlInput(f, usage);
           const groupId = num(f["group-id"])!;
+          const instanceId = await resolveInstanceId(client, f.instance, groupId);
+          const fullSql = ticketSqlInput(f, usage);
           // Audit first; hard-fail on errors/critical so a broken script never
           // turns into a pending ticket.
           const check = await client.workflow.sqlcheck({ instanceId, db: f.db, fullSql });
@@ -325,7 +374,10 @@ async function runEnv(
         }
         case "execute": {
           const id = num(f["workflow-id"]);
-          if (!id) throw new Error("usage: workflow execute --workflow-id N [--mode auto|manual] [--yes]");
+          if (!id)
+            throw new Error(
+              "usage: workflow execute --workflow-id N [--mode auto|manual] [--yes] [--wait] [--interval S] [--max-wait S]",
+            );
           const mode = f.mode === "manual" ? "manual" : "auto";
           if (f.yes !== "true") {
             return {
@@ -338,13 +390,48 @@ async function runEnv(
             };
           }
           const probe = await client.workflow.execute(id, mode);
+          const onPoll = (snap: WorkflowWaitResult): void => {
+            console.error(
+              `[wait] poll ${snap.polls} status=${snap.status} content=${snap.contentState} ` +
+                `executed=${snap.rowsExecuted}/${snap.rowsTotal} affected=${snap.affectedSum} elapsed=${snap.elapsedSec}s`,
+            );
+          };
+          const wait =
+            f.wait === "true"
+              ? await client.workflow.wait({
+                  workflowId: id,
+                  intervalSec: num(f.interval) ?? 15,
+                  timeoutSec: num(f["max-wait"]) ?? 3600,
+                  onPoll,
+                })
+              : undefined;
           return {
             executed: true,
             workflowId: id,
             mode,
             ...probe,
-            hint: `verify outcome: mycastle archery workflow content --workflow-id ${id} --env ${client.env}`,
+            ...(wait ? { wait } : {}),
+            hint: wait
+              ? `run finished: status=${wait.status} success=${wait.success} ` +
+                `rowsExecuted=${wait.rowsExecuted}/${wait.rowsTotal} affected=${wait.affectedSum} in ${wait.elapsedSec}s`
+              : `verify outcome: mycastle archery workflow content --workflow-id ${id} --env ${client.env}`,
           };
+        }
+        case "wait": {
+          const id = num(f["workflow-id"]);
+          if (!id)
+            throw new Error("usage: workflow wait --workflow-id N [--interval S] [--max-wait S]");
+          return client.workflow.wait({
+            workflowId: id,
+            intervalSec: num(f.interval) ?? 15,
+            timeoutSec: num(f["max-wait"]) ?? 3600,
+            onPoll: (snap: WorkflowWaitResult): void => {
+              console.error(
+                `[wait] poll ${snap.polls} status=${snap.status} content=${snap.contentState} ` +
+                  `executed=${snap.rowsExecuted}/${snap.rowsTotal} affected=${snap.affectedSum} elapsed=${snap.elapsedSec}s`,
+              );
+            },
+          });
         }
         case "cancel": {
           const id = num(f["workflow-id"]);
@@ -365,7 +452,7 @@ async function runEnv(
         }
         default:
           throw new Error(
-            "usage: workflow list|groups|sqlcheck|submit|content|execute|cancel (see help)",
+            "usage: workflow list|groups|sqlcheck|submit|content|execute|wait|cancel (see help)",
           );
       }
     }

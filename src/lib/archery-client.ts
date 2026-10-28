@@ -133,10 +133,18 @@ export interface InstanceRow {
   [key: string]: unknown;
 }
 
-/** Permission tags Archery filters instances by (tag_codes[]). */
-export type InstanceTag = "can_read" | "can_execute" | "can_audit" | "can_modify";
+/** Permission tags Archery filters instances by (tag_codes[] / tag_code).
+ *  can_write only appears on the group-scoped view (/group/instances/) — it is
+ *  the ticket-submittable marker used by the /submitsql/ instance dropdown. */
+export type InstanceTag = "can_read" | "can_execute" | "can_write" | "can_audit" | "can_modify";
 
-export const INSTANCE_TAGS: readonly InstanceTag[] = ["can_read", "can_execute", "can_audit", "can_modify"];
+export const INSTANCE_TAGS: readonly InstanceTag[] = [
+  "can_read",
+  "can_execute",
+  "can_write",
+  "can_audit",
+  "can_modify",
+];
 
 // --- workflow (upline ticket) types ---
 
@@ -225,6 +233,48 @@ export interface WorkflowActionProbe {
   looksLikeLoginPage: boolean;
   title: string;
   [key: string]: unknown;
+}
+
+/** Terminal workflow statuses. workflow_finish = executed OK; workflow_abort =
+ *  aborted (human cancel or execution failure). Anything else (manreviewing /
+ *  review_pass / timing_task / …) keeps polling; error-ish statuses also count as
+ *  terminal so a broken run never spins a wait until the budget runs out. */
+export function isTerminalWorkflowStatus(status: string): boolean {
+  return (
+    status === "workflow_finish" ||
+    status === "workflow_abort" ||
+    /error|exception|failed/i.test(status)
+  );
+}
+
+export interface WorkflowWaitOpts {
+  workflowId: number;
+  /** seconds between polls (default 15) */
+  intervalSec?: number;
+  /** overall budget in seconds (default 3600; 0 = wait forever) */
+  timeoutSec?: number;
+  /** progress callback after each poll (CLI prints it to stderr) */
+  onPoll?: (snap: WorkflowWaitResult) => void;
+}
+
+/** One poll's snapshot of a workflow ticket. */
+export interface WorkflowWaitResult {
+  workflowId: number;
+  /** latest status from the ticket list (unknown when the list lookup failed) */
+  status: string;
+  /** detail_content state: pending = 0 rows (not started), running = mixed
+   *  CHECKED/EXECUTED, executed = all EXECUTED, unknown = content errored */
+  contentState: "pending" | "running" | "executed" | "unknown";
+  finished: boolean;
+  success: boolean; // executed content (and not aborted) or list says workflow_finish
+  rowsTotal: number; // detail_content statements (0 before execution starts)
+  rowsExecuted: number; // rows flipped to EXECUTED so far
+  affectedSum: number; // sum of affected_rows over EXECUTED rows
+  polls: number;
+  elapsedSec: number;
+  /** last transport/API error message tolerated during polling, if any */
+  lastError?: string;
+  timedOut?: boolean;
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -725,6 +775,87 @@ export class ArcheryClient {
         cancel_remark: remark,
       });
     },
+    // One ticket's current list row (status etc.). No id-based REST endpoint exists
+    // (/api/v1/workflow/<id>/ is 404; ?id= matches nothing), so page the newest
+    // tickets of /sqlworkflow_list/ and find by id.
+    get: async (workflowId: number): Promise<WorkflowRow | null> => {
+      const toDate = new Date(Date.now() + 36e5 * 48).toISOString().slice(0, 10);
+      for (let offset = 0; offset < 400; offset += 100) {
+        const page = await this.workflow.list({ fromDate: "2020-01-01", toDate, limit: 100, offset });
+        const hit = page.rows.find((r) => r.id === workflowId);
+        if (hit) return hit;
+        if (page.rows.length < 100) break;
+      }
+      return null;
+    },
+    // Poll a ticket until finished (or the budget runs out). Primary signal is
+    // detail_content (ONE request per poll; its rows flip CHECKED→EXECUTED
+    // progressively while the run executes, all-EXECUTED = done, empty = not
+    // started). The list status is only checked on the first poll and every 5th:
+    // it catches abort/exception, which freezes content in a mixed
+    // CHECKED/EXECUTED (or empty) state forever. Re-runnable: an already-finished
+    // ticket returns on the first poll, so an interrupted wait can be re-invoked.
+    wait: async (opts: WorkflowWaitOpts): Promise<WorkflowWaitResult> => {
+      const intervalSec = Math.max(1, opts.intervalSec ?? 15);
+      const timeoutSec = opts.timeoutSec ?? 3600;
+      const start = Date.now();
+      let polls = 0;
+      let status = "unknown";
+      let lastError: string | undefined;
+      for (;;) {
+        polls++;
+        let rows: SqlCheckRow[] = [];
+        try {
+          rows = (await this.workflow.detailContent(opts.workflowId)).rows ?? [];
+        } catch (e) {
+          // tolerate a transient/unknown-id content error (e.g. 404) — keep polling;
+          // a real ticket resolves on a later poll.
+          lastError = e instanceof Error ? e.message : String(e);
+        }
+        if (polls === 1 || polls % 5 === 0) {
+          try {
+            status = (await this.workflow.get(opts.workflowId))?.status ?? "unknown";
+          } catch (e) {
+            lastError = e instanceof Error ? e.message : String(e);
+          }
+        }
+        const executed = rows.filter((r) => r.stage === "EXECUTED");
+        const allExecuted = rows.length > 0 && executed.length === rows.length;
+        const finishedByStatus = isTerminalWorkflowStatus(status);
+        const finished = allExecuted || finishedByStatus;
+        const success = allExecuted
+          ? status !== "workflow_abort" // content done wins unless explicitly aborted
+          : status === "workflow_finish";
+        const contentState: WorkflowWaitResult["contentState"] =
+          rows.length === 0
+            ? lastError
+              ? "unknown"
+              : "pending"
+            : allExecuted
+              ? "executed"
+              : "running";
+        const affectedSum = executed.reduce((acc, r) => acc + (Number(r.affected_rows) || 0), 0);
+        const snap: WorkflowWaitResult = {
+          workflowId: opts.workflowId,
+          status,
+          contentState,
+          finished,
+          success,
+          rowsTotal: rows.length,
+          rowsExecuted: executed.length,
+          affectedSum,
+          polls,
+          elapsedSec: Math.round((Date.now() - start) / 1000),
+          ...(lastError ? { lastError } : {}),
+        };
+        opts.onPoll?.(snap);
+        if (finished) return snap;
+        if (timeoutSec > 0 && (Date.now() - start) / 1000 >= timeoutSec) {
+          return { ...snap, timedOut: true };
+        }
+        await new Promise((resolve) => setTimeout(resolve, intervalSec * 1000));
+      }
+    },
   };
 
   readonly querylog = {
@@ -755,6 +886,21 @@ export class ArcheryClient {
         "GET",
         `/group/user_all_instances/?${params.toString()}`,
       );
+    },
+    // POST /group/instances/ {group_name, tag_code} — the /submitsql/ page's instance
+    // dropdown source: instances the SELECTED GROUP can use under the given tag
+    // (can_write = ticket-submittable). Authoritative id source for submit targets —
+    // the query view (list()) can lack submit-only instances (e.g. RDS masters you
+    // may write tickets to but never SELECT from). Family A envelope.
+    byGroup: async (
+      groupName: string,
+      tagCode: InstanceTag = "can_write",
+    ): Promise<ArcheryEnvelope<InstanceRow[]>> => {
+      await this.ensureSession();
+      return this.request<ArcheryEnvelope<InstanceRow[]>>("POST", "/group/instances/", {
+        group_name: groupName,
+        tag_code: tagCode,
+      });
     },
   };
 

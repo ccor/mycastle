@@ -41,11 +41,15 @@ mycastle archery tables --instance "<instance>" --db db_sample --env test       
 mycastle archery columns --instance "<instance>" --db db_sample --table sample_orders --env test   # 表的列
 mycastle archery describe --instance "<instance>" --db db_sample --table sample_orders --env test  # 表结构
 mycastle archery query --instance "<instance>" --db db_orders --sql 'select * from sample_records' --limit 100 --env test
+mycastle archery instances --env test                                    # 当前账号可访问的实例(查询视角)
+mycastle archery instances --group "<group>" --env test                  # 某组的实例(提交视角,默认 can_write=可提单)
 mycastle archery workflow groups --env test                             # 提交工单可用的组(id→名称)
 mycastle archery workflow sqlcheck --instance "<instance|id>" --db db_sample --sql-file x.sql --env test   # 只审核,不建单
 mycastle archery workflow submit --instance "<instance|id>" --db db_sample --group-id <group-id> --name "<ticket-name>" --sql-file x.sql --env test   # 默认 dry-run,--yes 建单
 mycastle archery workflow content --workflow-id <id> --env test        # 工单语句明细
 mycastle archery workflow execute --workflow-id <id> --yes --env test  # 立即执行(走平台执行入口,受状态/权限约束)
+mycastle archery workflow execute --workflow-id <id> --yes --wait --interval 15 --max-wait 3600 --env test  # 执行并轮询到终态
+mycastle archery workflow wait --workflow-id <id> --env test           # 轮询工单到终态(可重入,进度走 stderr)
 mycastle archery workflow cancel --workflow-id <id> --remark "不要了" --yes --env test  # 终止
 mycastle archery workflow list --instance "<instance>" --group "<group>" --from 2026-09-09 --to 2026-10-08 --env prd  # 名字自动解析 id
 mycastle archery workflow list --env test                                   # 上线工单列表
@@ -59,6 +63,7 @@ mycastle archery logout --env test                                          # �
 - 默认 pretty JSON;`--compact` 单行。`--config <path>` 覆盖配置路径。
 - `--timeout <ms>` 单请求超时(默认 30000),慢聚合可放宽。
 - `--instance` 为**实例名**(以 `mycastle archery instances` 输出为准,中文/英文均可);`--from/--to` 为 `YYYY-MM-DD`。
+- `workflow wait` / `execute --wait`:`--interval <s>` 轮询间隔(默认 15)、`--max-wait <s>` 总预算(默认 3600,0=不限);进度行走 **stderr**,最终快照 JSON 走 **stdout**;已终态的工单首拍即返回,中断后重跑同一命令可续等。
 - `workflow list --status` 取**英文状态 key**(如 `workflow_finish` / `workflow_abort`),**非**中文标签(中文标签不匹配)。
 
 ## 3. 会话与 CSRF(Django 双提交)
@@ -86,7 +91,7 @@ const rows = await c.query.run({ instance: "<instance>", db: "db_orders", sql: "
 
 出错抛 `ArcheryApiError`,带 `status` / `body` / `url` / `env`(传输/超时 `status` 为 `0`)。
 
-## 5. 工单提交(workflow sqlcheck / submit / groups / content / execute / cancel)
+## 5. 工单提交(workflow sqlcheck / submit / groups / content / execute / wait / cancel)
 
 > 端点(与浏览器端页面/表单提交等价,均为平台既有入口):
 
@@ -109,7 +114,10 @@ mycastle archery workflow content --workflow-id <id> --env test
 ```
 
 - **submit 默认 dry-run**:先跑 sqlcheck,返回 `{submitted:false, dryRun:true, check}`;加 `--yes` 才真正建单。sqlcheck 有 error/critical 时直接拒绝提交。
-- **`--instance` 支持实例名或数字 id**:实例名经 `instances` 列表自动解析为 id(`can_execute` 优先,退 `can_read`)。
+- **`--instance` 支持实例名或数字 id**,按**三级解析**:数字直通 → 查询视图(`can_execute` 退 `can_read`)→ `--group-id` 对应组的 `can_write` 视图。查询视角与提交视角是**两套清单,id 可能不同**(提交用的主库常不出现在查询视角),提单这类实例时必须带 `--group-id`。
+- **`instances --group <组名|id>`** 出提交视角实例清单(`POST /group/instances/`,`group_name`+`tag_code`,默认 `can_write`=可提单,即提交页实例下拉同源);`instances`(无 `--group`)出查询视角(`GET /group/user_all_instances/`)。
+- **`workflow wait` / `execute --wait` 轮询到终态**:主信号 = `detail_content` 单请求(`rows` 由 CHECKED→EXECUTED 渐进翻转,全 EXECUTED=完成,空=未开始);列表状态只在首拍与每 5 拍查一次,兜底捕捉 abort/exception(此时内容会冻结在混合态)。单拍 404/抖动容忍(`lastError` 记录后续轮不中断);终态判定 = `workflow_finish` / `workflow_abort` / 状态含 error/exception/failed。已终态首拍即返回,可重入。
+- **`workflow get`**:平台无按 id 的 REST 端点(`/api/v1/workflow/<id>/` 404、`?id=` 无效),按 `sqlworkflow_list` 从新到旧翻页找 id。
 - **工单 SQL 里可以带注释**:`--`/`#` 注释行合法且会被保留——strip 逻辑把注释附着在所属语句前提交(被剥离的事务语句,其前导注释会传递给下一条保留语句,文件头注释不丢;含分号的注释也不会切碎语句)。平台审核对注释无告警。
 - **工单不接受事务控制语句**:`SET NAMES` / `BEGIN` / `START TRANSACTION` / `COMMIT` / `ROLLBACK` 会报 `Not supported statement type`(Archery 自管事务与字符集)。sqlcheck/submit 默认**自动剥离**这些语句(`--raw` 关闭剥离);事务版 SQL 文件可直接喂给 `--sql-file`。
 - 剥离前先按行剔除 `--`/`#` 注释再按顶层分号切分(引号感知)——注释里的半角分号(如中文注释"…;说明。")会把语句切碎。
@@ -122,7 +130,7 @@ mycastle archery workflow content --workflow-id <id> --env test
 ## 6. 注意
 
 - **读路径只读,提交路径只建单**:`query` 仅跑用户给的 SQL(服务端强制只 SELECT);`workflow submit` 只创建待审工单,不执行 SQL。审核/执行工单仍需在平台 UI 走审批流(execute 子命令可代执行已过审工单,见 §5)。
-- **`instances` 是"可访问视图"非全量清单**:`/group/user_all_instances/?tag_codes[]=can_read` 返回**当前账号在其分组权限内能访问**的实例(SQL 查询页下拉框同源),不是管理员视角的全部配置实例。只读/审计账号通常 `can_read` 全开、`can_execute`/`can_audit`/`can_modify` 为空。要拿 `--instance` 的实例名,先跑 `instances`。
+- **`instances` 是"可访问视图"非全量清单,且查询/提交是两套视图**:`GET /group/user_all_instances/?tag_codes[]=can_read` 返回**当前账号在其分组权限内能访问**的实例(SQL 查询页下拉框同源);提交页实例下拉走 `POST /group/instances/`(组视角,`can_write`=可提单)。两套清单 id 可能不同,以 `instances --group` 的提交视角为准提单。要拿 `--instance` 的实例名,先跑 `instances`(或 `instances --group`)。
 - **明文 HTTP**:内网走 `http://` 明文链路有泄露风险,留意是否有 HTTPS 入口。
 - **CSRF 轮换**:登录后若服务端轮换 `csrftoken`,客户端用新值落盘,否则后续 POST 失效。
 - **实例名编码**:实例名可能含中文等非 ASCII 字符,URL 与 form 编码需一致(`URLSearchParams` 统一处理),避免编码差异导致 404。

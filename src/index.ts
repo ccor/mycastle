@@ -72,6 +72,7 @@ export {
   ArcheryClient,
   ArcheryApiError,
   INSTANCE_TAGS,
+  isTerminalWorkflowStatus,
   splitSqlStatements,
   stripNonTicketStatements,
   parseGroupOptions,
@@ -94,6 +95,8 @@ export type {
   WorkflowSubmitResult,
   WorkflowDetailContent,
   WorkflowActionProbe,
+  WorkflowWaitOpts,
+  WorkflowWaitResult,
 } from "./lib/archery-client.js";
 export {
   loadArcheryConfig,
