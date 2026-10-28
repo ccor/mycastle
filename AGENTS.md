@@ -29,6 +29,12 @@ Skills live in **this repo's `skills/`** directory — the GitHub source the `sk
 
 Tools **only collect and emit structured JSON to stdout** — no summarization, no LLM logic inside a tool. An agent reads the JSON and writes the prose.
 
+### Extension API
+
+- `import { ArcheryClient } from "mycastle"` (backed by `src/index.ts`) is the **stable programmatic surface**. It is a curated re-export of the lib modules — add new public exports there deliberately, renaming cross-module collisions with `as` (e.g. `resolveEnvs` → `resolveKibanaEnvs` / `resolveArcheryEnvs` / `resolveXxljobEnvs`).
+- Deep imports (`mycastle/dist/lib/*.js`) stay available (there is no `exports` map), but changing their signatures is treated as a **minor-version breaking change**.
+- The CLI tool contract is `export async function run(argv: string[]): Promise<void>` (type `ToolRun` in `src/index.ts`); `src/cli.ts` routes to it via dynamic import. `src/index.ts` must stay re-export-only: no side effects, never import `./cli.js`.
+
 ## Commands
 
 ```bash

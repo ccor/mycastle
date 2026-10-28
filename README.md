@@ -62,4 +62,6 @@ node dist/cli.js hello   # smoke test
 npm run typecheck        # tsc --noEmit
 ```
 
-Source layout: `src/*.ts` = CLI tools (each exports `run(argv)`); `src/lib/*.ts` = shared helpers; `src/cli.ts` = command router; `src/commands/*.ts` = init/self-update; `skills/` = GitHub source the `skills` CLI pulls from (not in the npm tarball); `templates/` = workspace scaffolds.
+Programmatic use (stable surface, `src/index.ts` → `dist/index.js`): `import { ArcheryClient, KibanaClient, resolveConnection } from "mycastle"`.
+
+Source layout: `src/*.ts` = CLI tools (each exports `run(argv)`); `src/lib/*.ts` = shared helpers; `src/index.ts` = public extension API (curated re-exports); `src/cli.ts` = command router; `src/commands/*.ts` = init/self-update; `skills/` = GitHub source the `skills` CLI pulls from (not in the npm tarball); `templates/` = workspace scaffolds.

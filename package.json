@@ -5,7 +5,8 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "bin": { "mycastle": "dist/cli.js" },
-  "main": "dist/cli.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": ["dist", "templates"],
   "scripts": {
     "build": "tsc",
