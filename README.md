@@ -33,6 +33,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob <cmd>          read-only XXL-Job admin CLI
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: submit/execute/cancel need --yes)
+  prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
   mysql <cmd>           MySQL inspection + DDL execution CLI
 ```
 
@@ -49,7 +50,7 @@ Skills are pulled from this repo's `skills/` dir on GitHub by the `skills` CLI a
 
 Tools read secrets only from gitignored files under `.myws/` (or env vars), never from flags. See each tool's `--help`. The package itself contains no secrets.
 
-Agents must never read `.myws/*` files or `.env` raw — the contents flow into their conversation context and out to model servers. Enumerate with the redacted commands instead: `mycastle mysql conns` (password always `"***"`) and `mycastle archery|xxljob|kibana envs` (name + url + username; never passwords).
+Agents must never read `.myws/*` files or `.env` raw — the contents flow into their conversation context and out to model servers. Enumerate with the redacted commands instead: `mycastle mysql conns` (password always `"***"`) and `mycastle archery|xxljob|kibana|prometheus envs` (name + url + auth kind; never keys/passwords).
 
 ## Development
 

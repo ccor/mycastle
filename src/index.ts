@@ -104,6 +104,38 @@ export {
 } from "./lib/archery-config.js";
 export type { ArcheryConfig, ArcheryEnvConfig } from "./lib/archery-config.js";
 
+// --- prometheus -------------------------------------------------------------------
+
+export {
+  PrometheusClient,
+  PrometheusApiError,
+} from "./lib/prometheus-client.js";
+export type {
+  PrometheusAuth,
+  PrometheusClientOptions,
+  PromResponse,
+  PromSeries,
+  PromQueryData,
+  PromRangeParams,
+  PromTimeWindow,
+  PromBuildInfo,
+  PromTarget,
+  PromTargetsData,
+} from "./lib/prometheus-client.js";
+export {
+  loadPrometheusConfig,
+  configExists as prometheusConfigExists,
+  resolveAuthMode as resolvePrometheusAuthMode,
+  resolveEnvs as resolvePrometheusEnvs,
+  toClientOptions as toPrometheusClientOptions,
+} from "./lib/prometheus-config.js";
+export type {
+  PrometheusConfig,
+  PrometheusEnvConfig,
+  PrometheusAuthMode,
+  PrometheusEnvListing,
+} from "./lib/prometheus-config.js";
+
 // --- xxljob ------------------------------------------------------------------------
 
 export { XxljobClient, XxljobApiError } from "./lib/xxljob-client.js";
