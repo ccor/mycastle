@@ -28,6 +28,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: --yes)
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
+  yapi <cmd>            YApi CLI (docs browse/export + gated writes: --apply)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   data-sync copy <opts> copy table data Source → mysql Dest
   table-sync <cmd>      diff two archery envs / generate manual sync SQL (read-only)
@@ -55,6 +56,7 @@ const TOOLS: Record<string, () => Promise<{ run: (a: string[]) => unknown }>> = 
   "xxljob-scan": () => import("./xxljob-scan.js"),
   archery: () => import("./archery.js"),
   prometheus: () => import("./prometheus.js"),
+  yapi: () => import("./yapi.js"),
   mysql: () => import("./mysql-helper.js"),
   "data-sync": () => import("./data-sync.js"),
   "table-sync": () => import("./table-sync.js"),

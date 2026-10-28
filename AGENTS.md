@@ -81,7 +81,7 @@ The package contains **no secrets**. Consumers keep credentials in their workspa
 
 - `mycastle mysql conns` — connections: name/host/port/user/database, password always `"***"`
 - `mycastle archery envs` / `mycastle xxljob envs` — envs: name + url + username, never passwords
-- `mycastle kibana envs` / `mycastle prometheus envs` — envs: name + url + auth kind, never keys/passwords
+- `mycastle kibana envs` / `mycastle prometheus envs` / `mycastle yapi envs` — envs: name + url + auth kind, never keys/passwords
 
 Read a credential file only when the user explicitly asks for it and accepts the exposure. The workspace-facing copy of this rule ships in `templates/AGENTS.md.tpl`; each tool doc carries a ⚠️ note with the same command list.
 

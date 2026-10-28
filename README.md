@@ -34,6 +34,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: submit/execute/cancel need --yes)
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
+  yapi <cmd>            YApi CLI (docs browse/export + gated writes: --apply)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   table-sync <cmd>      diff two archery envs / generate manual sync SQL (read-only)
 ```

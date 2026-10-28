@@ -146,6 +146,37 @@ export {
 } from "./lib/xxljob-config.js";
 export type { XxljobConfig, XxljobEnvConfig } from "./lib/xxljob-config.js";
 
+// --- yapi ---------------------------------------------------------------------------
+
+export {
+  YapiClient,
+  YapiApiError,
+  summarizeInterface,
+  summarizeCategories,
+} from "./lib/yapi-client.js";
+export type {
+  YapiClientAuth,
+  YapiProject,
+  YapiGroup,
+  YapiInterfaceSummary,
+  YapiInterface,
+  YapiCategory,
+  YapiSnapshot,
+  YapiStatus,
+} from "./lib/yapi-client.js";
+export {
+  loadYapiConfig,
+  resolveEnvs as resolveYapiEnvs,
+  resolveAuth as resolveYapiAuth,
+} from "./lib/yapi-config.js";
+export type { YapiConfig, YapiEnvConfig, YapiAuth as YapiAuthPlan } from "./lib/yapi-config.js";
+export {
+  readSession as readYapiSession,
+  writeSession as writeYapiSession,
+  clearSession as clearYapiSession,
+} from "./lib/yapi-session.js";
+export type { YapiSessionRecord } from "./lib/yapi-session.js";
+
 // --- mysql -------------------------------------------------------------------------
 
 export { MysqlHelper } from "./lib/mysql-client.js";
