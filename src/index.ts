@@ -128,6 +128,7 @@ export {
   resolveAuthMode as resolvePrometheusAuthMode,
   resolveEnvs as resolvePrometheusEnvs,
   toClientOptions as toPrometheusClientOptions,
+  listEnvs as listPrometheusEnvs,
 } from "./lib/prometheus-config.js";
 export type {
   PrometheusConfig,
@@ -180,7 +181,11 @@ export type { YapiSessionRecord } from "./lib/yapi-session.js";
 // --- mysql -------------------------------------------------------------------------
 
 export { MysqlHelper } from "./lib/mysql-client.js";
-export type { ExecResult } from "./lib/mysql-client.js";
+export {
+  previewStatement,
+  splitSqlStatements as splitMysqlStatements,
+} from "./lib/mysql-client.js";
+export type { ExecResult, Row as MysqlRow } from "./lib/mysql-client.js";
 export {
   resolveConnection,
   listConnections,
@@ -195,7 +200,22 @@ export type {
 
 // --- data-sync -----------------------------------------------------------------------
 
-export { quoteIdent, sqlLiteral } from "./lib/data-sync.js";
+export {
+  quoteIdent,
+  sqlLiteral,
+  parseTableList,
+  openSource,
+  openDest,
+  syncTables,
+} from "./lib/data-sync.js";
+export type { SyncMode } from "./lib/data-sync.js";
+
+// --- repo changes (collector) ----------------------------------------------------------
+
+export { collectRepoChanges } from "./lib/git-collect.js";
+export type { RepoChanges } from "./lib/git-collect.js";
+export { loadReposConfig } from "./lib/repos-config.js";
+export type { RepoEntry } from "./lib/repos-config.js";
 
 // --- state ------------------------------------------------------------------------------
 
