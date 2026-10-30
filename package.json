@@ -1,6 +1,6 @@
 {
   "name": "mycastle",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Personal workspace toolkit: scaffold a work hub and run cross-platform CLIs — read-only by default, writes always opt-in (--yes/--apply). Skills are managed by the `skills` CLI.",
   "type": "module",
   "engines": { "node": ">=20" },
