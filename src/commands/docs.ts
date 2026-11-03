@@ -132,7 +132,7 @@ export function run(argv: string[]): void {
   const text = readDoc(file);
   if (text === null) {
     console.error(
-      `error: bundled doc missing at ${docsDir} (dev checkout? run "npm run build" to generate docs/).`,
+      `error: bundled doc missing (docs/ under the package root; dev checkout? run "npm run build" to generate docs/).`,
     );
     process.exit(1);
   }

@@ -33,6 +33,7 @@ Usage:
 
 Pure text report; run it inside a workspace (uses process.cwd()).
 Never prints .myws config contents or any field value — status + counts only.
+Report-only: always exits 0, even when configs are broken (not a CI gate).
 `;
 
 /** Version of the RUNNING mycastle (the package this CLI was loaded from). */
@@ -110,12 +111,18 @@ function parseErrorPosition(msg: string): string {
   return m ? ` (at position ${m[1]})` : "";
 }
 
-/** Status line for a config file: missing / invalid JSON / ok(N) / invalid(fixed wording). */
+/** Verdict of a config validator: entry summary text plus an optional non-fatal warning. */
+interface Verdict {
+  text: string;
+  warn?: string;
+}
+
+/** Status line for a config file: missing / invalid JSON / ok(N) / warn(...) / invalid(fixed wording). */
 function checkConfig(
   label: string,
   relPath: string,
   hint: string,
-  validate: () => string, // entry summary like "2 envs"; throws on structural problems
+  validate: () => Verdict, // entry summary like "2 envs"; throws on structural problems
 ): string {
   const p = path.join(process.cwd(), relPath);
   if (!fs.existsSync(p)) return `${label}: missing (${relPath})`;
@@ -123,7 +130,7 @@ function checkConfig(
   try {
     rawText = fs.readFileSync(p, "utf8");
   } catch {
-    return `${label}: unreadable (${relPath})`;
+    return `${label}: invalid (unreadable — see: ${hint})`;
   }
   try {
     JSON.parse(rawText);
@@ -132,19 +139,23 @@ function checkConfig(
     return `${label}: invalid JSON${pos} — see: ${hint}`;
   }
   try {
-    return `${label}: ok (${validate()})`;
+    const v = validate();
+    return v.warn
+      ? `${label}: warn (${v.text}; ${v.warn} — see: ${hint})`
+      : `${label}: ok (${v.text})`;
   } catch {
     return `${label}: invalid (structure; details: ${hint})`;
   }
 }
 
 /** Entry summary for the five env-style configs (throws when structurally broken). */
-function envCount(loader: () => { envs: Record<string, unknown> }): string {
-  return `${Object.keys(loader().envs).length} envs`;
+function envCount(loader: () => { envs: Record<string, unknown> }): Verdict {
+  const n = Object.keys(loader().envs).length;
+  return { text: `${n} env${n === 1 ? "" : "s"}` };
 }
 
 /** Entry summary for .myws/db.config.json (flat url or named connections). */
-function dbCount(): string {
+function dbCount(): Verdict {
   const raw = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), ".myws", "db.config.json"), "utf8"),
   ) as { url?: unknown; connections?: Record<string, { url?: unknown }> };
@@ -155,16 +166,17 @@ function dbCount(): string {
   if (urls.length === 0) throw new Error("no entries");
   if (urls.some((u) => typeof u !== "string" || u.length === 0)) throw new Error("missing url");
   for (const u of urls as string[]) parseMysqlUrl(u); // throws on malformed URL
-  return `${urls.length} connection${urls.length === 1 ? "" : "s"}`;
+  return { text: `${urls.length} connection${urls.length === 1 ? "" : "s"}` };
 }
 
 /** Entry summary for .myws/repos.config.json (via the repos loader). */
-function reposCount(): string {
+function reposCount(): Verdict {
   const entries = loadReposConfig(path.join(process.cwd(), ".myws", "repos.config.json"));
   const bad = entries.filter((r) => !fs.existsSync(r.path));
-  return bad.length === 0
-    ? `${entries.length} repos`
-    : `${entries.length} repos, ${bad.length} path(s) not found on disk`;
+  return {
+    text: `${entries.length} repos`,
+    warn: bad.length > 0 ? `${bad.length} path(s) not found on disk` : undefined,
+  };
 }
 
 /** Section 3: .myws inventory — status words and counts, never contents. */
@@ -209,9 +221,13 @@ export function run(argv: string[]): void {
   console.log("[.myws configs] (status + counts only; contents are never printed)");
   for (const line of configLines) console.log(`  ${line}`);
   const missing = configLines.filter((l) => l.includes(": missing")).length;
-  const broken = configLines.filter((l) => l.includes(": invalid")).length;
+  const invalid = configLines.filter((l) => l.includes(": invalid")).length;
+  const warn = configLines.filter((l) => l.includes(": warn")).length;
+  const ok = configLines.length - missing - invalid - warn;
   console.log(
-    `\nsummary: ${configLines.length - missing - broken} ok, ${broken} invalid, ${missing} missing` +
-      (missing + broken === 0 ? "" : ` — copy the .example files under .myws/ and see "mycastle docs <tool> --schema"`),
+    `\nsummary: ${ok} ok, ${warn} warn, ${invalid} invalid, ${missing} missing` +
+      (missing + invalid === 0
+        ? ""
+        : ` — copy the .example files under .myws/ and see "mycastle docs <tool> --schema"`),
   );
 }

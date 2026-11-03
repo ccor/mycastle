@@ -7,6 +7,8 @@
 | 命令 | 源文件 | 一句话 | 文档 |
 |---|---|---|---|
 | `mycastle hello` | `hello.ts` | 冒烟测试,验证可跑 | — |
+| `mycastle docs [tool] [--schema]` | `commands/docs.ts` | 打印随包工具文档(与已装版本一致);`--schema` 只看配置字段说明 | — |
+| `mycastle doctor` | `commands/doctor.ts` | 健康检查:运行时 / 全局与本地安装匹配 / `.myws` 配置状态(只报状态与计数,绝不输出内容;恒 exit 0) | — |
 | `mycastle env` | `env-info.ts` | 打印当前 shell/OS/工具链 + 引号与 JSON 解析速查表 | [env-info.md](env-info.md) |
 | `mycastle changes` | `repo-changes.ts` | 采集本地仓库自上次以来的改动 → 结构化 JSON | [repo-changes.md](repo-changes.md) |
 | `mycastle kibana` | `kibana.ts` | Kibana REST API 只读 CLI(空间 / data views) | [kibana.md](kibana.md) |
@@ -25,8 +27,8 @@
 
 | 路径 | 作用 |
 |---|---|
-| `cli.ts` | 命令路由:init / self-update + 工具名 → `src/<tool>.js` |
-| `commands/` | `init.ts`(脚手架 + 调 `skills` CLI 装技能) / `self-update.ts` |
+| `cli.ts` | 命令路由:init / self-update / doctor + 工具名(docs 在工具表内) → `run(argv)` |
+| `commands/` | `init.ts`(脚手架 + 调 `skills` CLI 装技能) / `self-update.ts` / `docs.ts`(随包文档) / `doctor.ts`(健康检查) |
 | `lib/platform.ts` | 跨平台公共工具(OS 判断、配置目录 `configDir`、`ensureDir`),所有工具复用 |
 | `lib/*.ts` | 各工具 helper(`kibana-client` / `kibana-config` / `xxljob-client` / `xxljob-config` / `xxljob-session` / `archery-client` / `archery-config` / `archery-session` / `mysql-client` / `mysql-config` / `repos-config` / `git-collect` / `state` / `data-sync`) |
 
