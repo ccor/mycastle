@@ -25,6 +25,7 @@ Workspace management:
   init [dir]            scaffold a new workspace
   self-update           update the mycastle package (npm)
   docs [tool]           print bundled tool docs (--schema: config section only)
+  doctor                health check: runtime / install match / .myws configs
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test

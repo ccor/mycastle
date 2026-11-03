@@ -19,6 +19,7 @@ Workspace management:
   init [dir]            scaffold a new workspace (default: current dir)
   self-update           update the mycastle package (npm)
   docs [tool]           print bundled tool docs (--schema: config section only)
+  doctor                health check: runtime / install match / .myws configs
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test — print platform + data dir
@@ -85,6 +86,11 @@ async function main(): Promise<void> {
   }
   if (cmd === "self-update") {
     const { run } = await import("./commands/self-update.js");
+    await run(rest);
+    return;
+  }
+  if (cmd === "doctor") {
+    const { run } = await import("./commands/doctor.js");
     await run(rest);
     return;
   }

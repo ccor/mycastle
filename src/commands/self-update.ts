@@ -3,6 +3,8 @@
 
 import process from "node:process";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 
 const HELP = `mycastle self-update — update the mycastle package
 
@@ -29,4 +31,22 @@ export async function run(argv: string[]): Promise<void> {
     process.exit(1);
   }
   console.log("\nself-update complete.");
+
+  // P2 nicety: when the cwd is a workspace that depends on mycastle, the global
+  // CLI is now fresh but the local copy is not — point at the align command.
+  try {
+    const pkgPath = path.join(process.cwd(), "package.json");
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    if (pkg.dependencies?.mycastle || pkg.devDependencies?.mycastle) {
+      console.log(
+        "\nnote: this workspace declares mycastle as a dependency — align the local copy with:\n" +
+          "  npm i mycastle@latest   (or: npm update mycastle)",
+      );
+    }
+  } catch {
+    // no/invalid cwd package.json → nothing to remind about
+  }
 }
