@@ -7,9 +7,9 @@
   "bin": { "mycastle": "dist/cli.js" },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "templates"],
+  "files": ["dist", "templates", "docs"],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-docs.mjs",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "hello": "tsx src/hello.ts"
