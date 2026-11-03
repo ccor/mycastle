@@ -19,6 +19,10 @@
 
 按项目分子目录存放（`docs/projects/<项目>/…`）。
 
+## 工具用法
+
+mycastle 工具的权威用法文档随 npm 包分发，永远与已安装版本一致，不随工作区保存：`mycastle docs <tool>` 打印全文，`mycastle docs <tool> --schema` 只看配置字段说明。本机使用心得建议记到 `docs/notes/`（含敏感信息则不要提交），登记在本索引。
+
 ## 约定
 
 - 文件名用 kebab-case；按类别建子目录。

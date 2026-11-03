@@ -24,6 +24,7 @@ mycastle xxljob -- envs        # XXL-Job read-only CLI
 mycastle xxljob-scan -- --root <src-root>   # offline-scan a Java source root for xxl-job handlers → JSON
 mycastle archery -- envs       # Archery CLI (reads are read-only; ticket writes need --yes)
 mycastle mysql -- show-databases  # MySQL inspection + DDL CLI
+mycastle docs <tool>           # bundled usage docs (always matches your installed version)
 skills update                  # refresh skills installed in .agents/ + .claude/
 mycastle --help                # full command list
 ```
@@ -44,7 +45,7 @@ This workspace is managed by the **mycastle** npm package. Skills are installed 
 - `mycastle archery envs` / `mycastle xxljob envs` — envs: name + url + username, never passwords
 - `mycastle kibana envs` — envs: name + url + auth kind, never keys/passwords
 
-Only read a credential file when the user explicitly asks for it and accepts the exposure.
+Only read a credential file when the user explicitly asks for it and accepts the exposure. For the field schema of each config file, print the config section of its bundled doc: `mycastle docs <tool> --schema` (e.g. `mycastle docs archery --schema`).
 
 - `.myws/repos.config.json` — repo-changes machine-specific paths. Copy `.myws/repos.config.example.json`.
 - `.myws/xxljob.config.json` — XXL-Job multi-env URLs + credentials.

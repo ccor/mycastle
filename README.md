@@ -24,6 +24,7 @@ mycastle env                   # print your shell/OS/toolchain
 Workspace management:
   init [dir]            scaffold a new workspace
   self-update           update the mycastle package (npm)
+  docs [tool]           print bundled tool docs (--schema: config section only)
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test

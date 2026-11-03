@@ -18,6 +18,7 @@ Usage:
 Workspace management:
   init [dir]            scaffold a new workspace (default: current dir)
   self-update           update the mycastle package (npm)
+  docs [tool]           print bundled tool docs (--schema: config section only)
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test — print platform + data dir
@@ -60,6 +61,7 @@ const TOOLS: Record<string, () => Promise<{ run: (a: string[]) => unknown }>> = 
   mysql: () => import("./mysql-helper.js"),
   "data-sync": () => import("./data-sync.js"),
   "table-sync": () => import("./table-sync.js"),
+  docs: () => import("./commands/docs.js"),
 };
 
 async function main(): Promise<void> {
