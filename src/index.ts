@@ -137,6 +137,36 @@ export type {
   PrometheusEnvListing,
 } from "./lib/prometheus-config.js";
 
+// --- jenkins -----------------------------------------------------------------------
+
+export {
+  JenkinsClient,
+  JenkinsApiError,
+  jobUrlPath,
+  jobsTree,
+  BUILD_ALIASES,
+} from "./lib/jenkins-client.js";
+export type {
+  JenkinsClientOptions,
+  JenkinsJobNode,
+  JenkinsBuildRef,
+  JenkinsParameterDefinition,
+} from "./lib/jenkins-client.js";
+export {
+  loadJenkinsConfig,
+  configExists as jenkinsConfigExists,
+  resolveAuthMode as resolveJenkinsAuthMode,
+  resolveEnvs as resolveJenkinsEnvs,
+  toClientOptions as toJenkinsClientOptions,
+  listEnvs as listJenkinsEnvs,
+} from "./lib/jenkins-config.js";
+export type {
+  JenkinsConfig,
+  JenkinsEnvConfig,
+  JenkinsAuthMode,
+  JenkinsEnvListing,
+} from "./lib/jenkins-config.js";
+
 // --- xxljob ------------------------------------------------------------------------
 
 export { XxljobClient, XxljobApiError } from "./lib/xxljob-client.js";

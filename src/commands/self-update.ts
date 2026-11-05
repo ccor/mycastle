@@ -31,6 +31,12 @@ export async function run(argv: string[]): Promise<void> {
     process.exit(1);
   }
   console.log("\nself-update complete.");
+  console.log(
+    "\nnote: workspaces carry a scaffolded AGENTS.md with a mycastle-scaffold stamp —\n" +
+      "refresh it after this update with:\n" +
+      "  mycastle update-agents-md\n" +
+      '(run "mycastle doctor" in a workspace to check staleness)',
+  );
 
   // P2 nicety: when the cwd is a workspace that depends on mycastle, the global
   // CLI is now fresh but the local copy is not — point at the align command.

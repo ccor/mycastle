@@ -14,7 +14,9 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { inspectScaffold } from "../lib/managed-blocks.js";
 import { loadArcheryConfig } from "../lib/archery-config.js";
+import { loadJenkinsConfig } from "../lib/jenkins-config.js";
 import { loadKibanaConfig } from "../lib/kibana-config.js";
 import { parseMysqlUrl } from "../lib/mysql-config.js";
 import { loadPrometheusConfig } from "../lib/prometheus-config.js";
@@ -192,6 +194,9 @@ function checkMywsConfigs(): string[] {
     checkConfig("prometheus", path.join(".myws", "prometheus.config.json"), docsHint("prometheus"), () =>
       envCount(() => loadPrometheusConfig()),
     ),
+    checkConfig("jenkins", path.join(".myws", "jenkins.config.json"), docsHint("jenkins"), () =>
+      envCount(() => loadJenkinsConfig()),
+    ),
     checkConfig("xxljob", path.join(".myws", "xxljob.config.json"), docsHint("xxljob"), () =>
       envCount(() => loadXxljobConfig()),
     ),
@@ -201,6 +206,32 @@ function checkMywsConfigs(): string[] {
     checkConfig("db", path.join(".myws", "db.config.json"), docsHint("mysql"), dbCount),
     checkConfig("repos", path.join(".myws", "repos.config.json"), docsHint("changes"), reposCount),
   ];
+}
+
+/** Section 4: workspace scaffold staleness — stamp check only, status words never content. */
+function checkWorkspaceScaffold(): string {
+  const agentsPath = path.join(process.cwd(), "AGENTS.md");
+  if (!fs.existsSync(agentsPath)) return "scaffold: missing (AGENTS.md) — run: mycastle init .";
+  let existing: string;
+  try {
+    existing = fs.readFileSync(agentsPath, "utf8");
+  } catch {
+    return "scaffold: unreadable";
+  }
+  const info = inspectScaffold(existing);
+  const running = readVersion();
+  switch (info.kind) {
+    case "managed": {
+      const v = info.stamp?.version || "unstamped";
+      return info.stamp && info.stamp.version === running
+        ? `scaffold: ok (scaffold ${v})`
+        : `scaffold: stale (scaffold ${v}, running ${running}) — run: mycastle update-agents-md`;
+    }
+    case "legacy":
+      return "scaffold: legacy (pre-marker) — run: mycastle update-agents-md (migrates; backs up first)";
+    default:
+      return "scaffold: not mycastle-managed (skipped)";
+  }
 }
 
 export function run(argv: string[]): void {
@@ -230,4 +261,7 @@ export function run(argv: string[]): void {
         ? ""
         : ` — copy the .example files under .myws/ and see "mycastle docs <tool> --schema"`),
   );
+  console.log("");
+  console.log("[workspace scaffold]");
+  console.log(`  ${checkWorkspaceScaffold()}`);
 }

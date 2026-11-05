@@ -16,16 +16,19 @@ cd my-workspace
 mycastle env                   # print your shell/OS/toolchain
 ```
 
-`init` creates `docs/` + `.myws/` and writes template files (README/AGENTS/CLAUDE/.gitignore). Skills install is **optional** — add `--skills` to install into `.agents/skills/` + `.claude/skills/` via the `skills` CLI (`npx skills add ccor/mycastle --all`; best-effort — failure only warns), or run that command later.
+`init` creates `docs/` + `.myws/` and writes template files (README/AGENTS/.gitignore). Skills install is **optional** — add `--skills` to install into `.agents/skills/` + `.claude/skills/` via the `skills` CLI (`npx skills add ccor/mycastle --all`; best-effort — failure only warns), or run that command later.
+
+After a mycastle update, refresh the workspace's AGENTS.md in place: `mycastle update-agents-md` (merges the marker-managed prompt block, preserves your notes, backs up to `AGENTS.md.bak` when the block was hand-edited).
 
 ## Commands
 
 ```
 Workspace management:
   init [dir]            scaffold a new workspace
+  update-agents-md      refresh AGENTS.md managed prompt block (after mycastle updates)
   self-update           update the mycastle package (npm)
   docs [tool]           print bundled tool docs (--schema: config section only)
-  doctor                health check: runtime / install match / .myws configs
+  doctor                health check: runtime / install match / .myws configs / scaffold
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test
@@ -36,6 +39,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: submit/execute/cancel need --yes)
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
+  jenkins <cmd>         Jenkins Remote Access API CLI (reads + gated writes: trigger/stop need --yes)
   yapi <cmd>            YApi CLI (docs browse/export + gated writes: --apply)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   table-sync <cmd>      diff two archery envs / generate manual sync SQL (read-only)
@@ -54,7 +58,7 @@ Skills are pulled from this repo's `skills/` dir on GitHub by the `skills` CLI a
 
 Tools read secrets only from gitignored files under `.myws/` (or env vars), never from flags. See each tool's `--help`. The package itself contains no secrets.
 
-Agents must never read `.myws/*` files or `.env` raw — the contents flow into their conversation context and out to model servers. Enumerate with the redacted commands instead: `mycastle mysql conns` (password always `"***"`) and `mycastle archery|xxljob|kibana|prometheus envs` (name + url + auth kind; never keys/passwords).
+Agents must never read `.myws/*` files or `.env` raw — the contents flow into their conversation context and out to model servers. Enumerate with the redacted commands instead: `mycastle mysql conns` (password always `"***"`), `mycastle archery|xxljob|jenkins envs` (name + url + username; never passwords/tokens) and `mycastle kibana|prometheus|yapi envs` (name + url + auth kind; never keys/passwords).
 
 ## Development
 

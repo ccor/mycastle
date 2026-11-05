@@ -1,12 +1,17 @@
 // init.ts — scaffold a new workspace: create dirs, write template files (skip
 // existing unless --force). Skills install is opt-in (--skills) via the `skills`
-// CLI; off by default. Idempotent and safe to re-run.
+// CLI; off by default.
+//
+// init is a pure scaffold: it never modifies existing files. In-place updates
+// of AGENTS.md (the marker-managed prompt block) belong to
+// `mycastle update-agents-md`.
 
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { stampFreshScaffold } from "../lib/managed-blocks.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(__dirname, "..", "..");
@@ -25,17 +30,20 @@ Usage:
 
 Creates: docs/  .myws/
 Writes (skipped if present, unless --force):
-  README.md  AGENTS.md  CLAUDE.md  .gitignore  docs/INDEX.md  .myws/repos.config.example.json
+  README.md  AGENTS.md  .gitignore  docs/INDEX.md  .myws/repos.config.example.json
+
+AGENTS.md carries a marker-managed prompt block (see the mycastle-scaffold
+stamp inside). After mycastle updates, refresh it in place with:
+  mycastle update-agents-md
 
 Skills are NOT installed by default (optional; needs network). Install now with
 --skills, or later with: npx skills@latest add ${SKILL_REPO} --all
 `;
 
-/** Template mapping: [src under templates/, one or more dest paths relative to workspace root].
- *  Multiple dests share one source (e.g. AGENTS.md.tpl → AGENTS.md + CLAUDE.md, identical content). */
+/** Template mapping: [src under templates/, dest paths relative to workspace root]. */
 const SCAFFOLD: Array<[string, string[]]> = [
   ["README.md.tpl", ["README.md"]],
-  ["AGENTS.md.tpl", ["AGENTS.md", "CLAUDE.md"]],
+  ["AGENTS.md.tpl", ["AGENTS.md"]],
   ["gitignore.tpl", [".gitignore"]],
   ["docs/INDEX.md.tpl", ["docs/INDEX.md"]],
   ["examples/repos.config.example.json", [".myws/repos.config.example.json"]],
@@ -73,11 +81,15 @@ export function run(argv: string[]): void {
     for (const dest of dests) {
       const destPath = path.join(workspaceRoot, dest);
       if (fs.existsSync(destPath) && !force) {
-        console.log(`  skip ${dest} (exists; use --force to overwrite)`);
+        const hint =
+          dest === "AGENTS.md" ? "; refresh in place with: mycastle update-agents-md" : "";
+        console.log(`  skip ${dest} (exists${hint})`);
         continue;
       }
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(srcPath, destPath);
+      const content =
+        dest === "AGENTS.md" ? stampFreshScaffold(fs.readFileSync(srcPath, "utf8"), version()) : null;
+      fs.writeFileSync(destPath, content ?? fs.readFileSync(srcPath, "utf8"), "utf8");
       console.log(`  wrote ${dest}`);
     }
   }
@@ -111,4 +123,15 @@ export function run(argv: string[]): void {
   console.log("  - Fill in .myws/*.config.json from the .example files (credentials).");
   console.log("  - Run a tool, e.g.  mycastle env");
   console.log("  - Edit docs/ and README.md to suit your work.");
+  console.log("  - Agents: re-read AGENTS.md — it lists the tools of the installed mycastle version.");
+}
+
+/** Package version, stamped into freshly written AGENTS.md. */
+function version(): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(pkgRoot, "package.json"), "utf8"));
+    return (pkg as { version?: string }).version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
 }

@@ -6,6 +6,8 @@ import process from "node:process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findAgentsMd, inspectScaffold } from "./lib/managed-blocks.js";
+import { readState, writeState } from "./lib/state.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkgRoot = path.resolve(__dirname, "..");
@@ -16,10 +18,11 @@ Usage:
   mycastle <command> [args...] [options]
 
 Workspace management:
-  init [dir]            scaffold a new workspace (default: current dir)
+  init [dir]            scaffold a workspace (default: current dir)
+  update-agents-md      refresh AGENTS.md managed prompt block (after mycastle updates)
   self-update           update the mycastle package (npm)
   docs [tool]           print bundled tool docs (--schema: config section only)
-  doctor                health check: runtime / install match / .myws configs
+  doctor                health check: runtime / install match / .myws configs / scaffold
 
 Tools (run "mycastle <tool> --help" for details):
   hello                 smoke test — print platform + data dir
@@ -30,6 +33,7 @@ Tools (run "mycastle <tool> --help" for details):
   xxljob-scan           offline-scan Java source for xxl-job handlers → JSON
   archery <cmd>         Archery DB portal CLI (reads + gated ticket writes: --yes)
   prometheus <cmd>      read-only Prometheus HTTP API CLI (query/range/series/targets)
+  jenkins <cmd>         Jenkins Remote Access API CLI (reads + gated writes: --yes)
   yapi <cmd>            YApi CLI (docs browse/export + gated writes: --apply)
   mysql <cmd>           MySQL inspection + DDL execution CLI
   data-sync copy <opts> copy table data Source → mysql Dest
@@ -58,12 +62,40 @@ const TOOLS: Record<string, () => Promise<{ run: (a: string[]) => unknown }>> = 
   "xxljob-scan": () => import("./xxljob-scan.js"),
   archery: () => import("./archery.js"),
   prometheus: () => import("./prometheus.js"),
+  jenkins: () => import("./jenkins.js"),
   yapi: () => import("./yapi.js"),
   mysql: () => import("./mysql-helper.js"),
   "data-sync": () => import("./data-sync.js"),
   "table-sync": () => import("./table-sync.js"),
   docs: () => import("./commands/docs.js"),
 };
+
+/**
+ * One-time-per-(workspace, version) stderr hint that the workspace scaffold
+ * lags the running package. Lazy by design: it only fires when a tool command
+ * actually runs, never blocks the run, and is deduplicated in state.json.
+ */
+function notifyStaleScaffold(): void {
+  try {
+    const agentsPath = findAgentsMd(process.cwd());
+    if (!agentsPath) return;
+    const info = inspectScaffold(fs.readFileSync(agentsPath, "utf8"));
+    if (info.kind !== "managed" || !info.stamp) return;
+    const running = readVersion();
+    if (info.stamp.version === running) return;
+    const key = `scaffold-notice:${agentsPath.toLowerCase()}`;
+    const state = readState();
+    if (state[key]?.lastSeen === running) return;
+    console.error(
+      `note: workspace AGENTS.md scaffolded by mycastle ${info.stamp.version} (running ${running}); ` +
+        "refresh: mycastle update-agents-md (optional)",
+    );
+    state[key] = { lastSeen: running, at: new Date().toISOString() };
+    writeState(state);
+  } catch {
+    /* the note must never break a tool run */
+  }
+}
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -94,10 +126,17 @@ async function main(): Promise<void> {
     await run(rest);
     return;
   }
+  if (cmd === "update-agents-md") {
+    const { run } = await import("./commands/update-agents-md.js");
+    await run(rest);
+    return;
+  }
 
   // tool commands
   const loader = TOOLS[cmd];
   if (loader) {
+    // Staleness note: tools only — never on help/doctor/init/self-update/docs/hello.
+    if (cmd !== "docs" && cmd !== "hello") notifyStaleScaffold();
     const mod = await loader();
     await mod.run(rest);
     return;

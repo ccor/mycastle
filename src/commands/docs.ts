@@ -18,6 +18,7 @@ const DOC_FILES: Record<string, string> = {
   archery: "archery.md",
   "data-sync": "data-sync.md",
   env: "env-info.md",
+  jenkins: "jenkins.md",
   kibana: "kibana.md",
   mysql: "mysql-helper.md",
   changes: "repo-changes.md",
