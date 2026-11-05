@@ -115,14 +115,17 @@ mycastle archery workflow content --workflow-id <id> --env test
 
 - **submit 默认 dry-run**:先跑 sqlcheck,返回 `{submitted:false, dryRun:true, check}`;加 `--yes` 才真正建单。sqlcheck 有 error/critical 时直接拒绝提交。
 - **`--instance` 支持实例名或数字 id**,按**三级解析**:数字直通 → 查询视图(`can_execute` 退 `can_read`)→ `--group-id` 对应组的 `can_write` 视图。查询视角与提交视角是**两套清单,id 可能不同**(提交用的主库常不出现在查询视角),提单这类实例时必须带 `--group-id`。
+- **实例 id 反查**(id 无处可查时):`workflow list --instance <猜测id> --limit 3` 看返回 rows 的 `instance__instance_name` 命中哪个实例名。⚠️ 不能用 `query` 验证 id——实例不在查询视角时报「你所在组未关联该实例」(权限错,非 id 不存在)。`sqlcheck` 无 `--group-id` 解析,主库实例直接传数字 id 或先 `instances --group` 查。
 - **`instances --group <组名|id>`** 出提交视角实例清单(`POST /group/instances/`,`group_name`+`tag_code`,默认 `can_write`=可提单,即提交页实例下拉同源);`instances`(无 `--group`)出查询视角(`GET /group/user_all_instances/`)。
 - **`workflow wait` / `execute --wait` 轮询到终态**:主信号 = `detail_content` 单请求(`rows` 由 CHECKED→EXECUTED 渐进翻转,全 EXECUTED=完成,空=未开始);列表状态只在首拍与每 5 拍查一次,兜底捕捉 abort/exception(此时内容会冻结在混合态)。单拍 404/抖动容忍(`lastError` 记录后续轮不中断);终态判定 = `workflow_finish` / `workflow_abort` / 状态含 error/exception/failed。已终态首拍即返回,可重入。
 - **`workflow get`**:平台无按 id 的 REST 端点(`/api/v1/workflow/<id>/` 404、`?id=` 无效),按 `sqlworkflow_list` 从新到旧翻页找 id。
-- **工单 SQL 里可以带注释**:`--`/`#` 注释行合法且会被保留——strip 逻辑把注释附着在所属语句前提交(被剥离的事务语句,其前导注释会传递给下一条保留语句,文件头注释不丢;含分号的注释也不会切碎语句)。平台审核对注释无告警。
+- **工单 SQL 里可以带注释,但放行首独立行最稳**:`--`/`#` 整行注释合法且会被保留——strip 逻辑把注释附着在所属语句前提交(被剥离的事务语句,其前导注释会传递给下一条保留语句,文件头注释不丢;含分号的注释也不会切碎语句)。分号后同行的行尾注释由客户端归一化为独立行再附着;prd 实证旧版会把它与下一条语句粘成一行(`-- noteUPDATE …`)整条吞掉,sqlcheck 仍 0 error 0 warning,只有 dry-run `affected_rows` 合计异常才暴露。平台审核对注释无告警。
+- **提交前核对语句数**:`workflow content` 的 rows 数应 = 语句数 + 1(use db)且 affected_rows 合计与预期一致;不符即有语句被吞/被剥,回查 SQL 文件。
 - **工单不接受事务控制语句**:`SET NAMES` / `BEGIN` / `START TRANSACTION` / `COMMIT` / `ROLLBACK` 会报 `Not supported statement type`(Archery 自管事务与字符集)。sqlcheck/submit 默认**自动剥离**这些语句(`--raw` 关闭剥离);事务版 SQL 文件可直接喂给 `--sql-file`。
 - 剥离前先按行剔除 `--`/`#` 注释再按顶层分号切分(引号感知)——注释里的半角分号(如中文注释"…;说明。")会把语句切碎。
 - 生成喂给工单的 SQL 必须每条语句以 `;` 结尾:末条缺分号时,下一条(如 COMMIT)会被并进来连带报错。
 - `is_backup` 对应提交体的 `"is_backup":false`;`run_date_start/end` 空串=立即。
+- **workflow_name 字符限制**:含 `/` 会 400 且响应 body 为空(全角括号疑似同),无错误详情极难排查;用中文/空格/连字符。
 - **execute/cancel 结果判定**:页面表单端点成功时 302 → `/detail/N/`(探针 `redirectedToDetail:true`);留在原端点(200)是视图 render 的错误页(如工单状态不可执行)。最终以 `workflow content`(stage=EXECUTED)/ `workflow list`(status)为准。注意 `workflow_abort` 是人工终止的终态。
 - **HTML 误判防护(两处)**:`/submitsql/` 等表单页与 execute 成功 302 回的 detail 页都含 `csrfmiddlewaretoken`,会被 `isLoginPage` 误判成会话过期并触发无谓重登;页面/表单请求分别走 `client.page()` / `postFormPage()`(manual redirect,仅 302→`/login/` 才重登),不走该判定。
 - 经典表单端点(`/execute/` `/cancel/`)与浏览器提交表单一致:`X-CSRFTOKEN` 头(值=cookie csrftoken)与表单里的 `csrfmiddlewaretoken` 字段均由 Django 双提交校验接受。
@@ -137,3 +140,4 @@ mycastle archery workflow content --workflow-id <id> --env test
 - **响应形状**:工单状态枚举、`/query/` 结果行列结构等以实跑为准。
 - **请求头**:带 `X-Requested-With` 与 `Referer`,贴近浏览器 ajax,避免被网关拦截。
 - **超时与大表聚合**:单请求 HTTP 超时默认 30000ms,`--timeout <ms>` 可放宽(如 `--timeout 120000`)。超大表按时间字段过滤容易超时;可改用**主键范围**扫描(`WHERE id >= <cutoff>`,`MAX(id)` 秒回,先用单点 `SELECT id,create_time WHERE id=<试探值>` 校准天数↔id 距离),聚合走 PK 范围即可落在超时内。
+- **Inception 换行折叠误报**:`FROM DUAL` 后接换行再写 `WHERE` 会被折叠成 `DUALWHERE` 误报语法错;同一行书写即消。

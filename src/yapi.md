@@ -13,6 +13,7 @@
 
 - 同一 env 可两者都配:显式 `--project <pid>` 且配了该项目的 token 时优先 token,否则走 session。
 - 自动重登**只**认 `errcode=40011 且 errmsg 含「请登录」`——YApi 服务器内部异常同样返回 40011(errmsg 为「服务器出错…」),不能据此重登。
+- 登录模式探测:`GET /api/user/status` 返回 `ladp:false`(**字段名就是 YApi 源码里的拼写**)= 本地账号密码登录(`POST /api/user/login`,form `email`+`password`);LDAP 接入的实例本地账密登录不通。
 - 实例部署版本 **1.9.x 实测**:登录态同端点双通道、`/api/project/token` 反查均按上述行为工作(源码核对基于 YMFE/yapi 仓库)。
 
 ## 2. 配置 `.myws/yapi.config.json`(gitignored)
@@ -52,7 +53,7 @@ mycastle yapi cats <pid> --full         # 同上,保留 list_menu 原始全量(�
 mycastle yapi interfaces <pid>          # 扁平接口列表(自动翻页拉满)
 mycastle yapi cat-ifaces <pid> --cat <catid>   # 某分类下的接口(自动翻页)
 mycastle yapi interface <id>            # 单接口全量详情(session 模式无需 --project)
-mycastle yapi token <pid>               # 反查项目 openapi token(仅 session 模式;输出即密钥,勿外传)
+mycastle yapi token <pid>               # 反查项目 openapi token(仅 session 模式;输出即密钥,勿外传;服务端尚无 token 时会自动生成=隐含写副作用)
 mycastle yapi search <pid> --q <keyword> [--status done]   # 按 title/path 关键字过滤
 mycastle yapi url <pid> [ifaceId] [--cat <catid>]          # 拼项目/分类/单接口访问 URL
 mycastle yapi cats <pid> --url          # 分类/接口列表每条带 webUrl(可直接点开)
