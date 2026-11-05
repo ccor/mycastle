@@ -382,7 +382,13 @@ const NON_TICKET_RE = /^(BEGIN\b|START\s+TRANSACTION\b|COMMIT\b|ROLLBACK\b|SET\s
  *  after the last kept statement). A dropped txn statement's comments carry
  *  over to the next kept statement, so file-header comments survive.
  *  Comments are stripped from the sniffed text first: a ';' inside a comment
- *  (common in Chinese prose headers) would otherwise split statements. */
+ *  (common in Chinese prose headers) would otherwise split statements.
+ *  A trailing comment after `;` on the same line (`...; -- note`) is routed
+ *  into `comments` too — left in the body it would glue onto the NEXT
+ *  statement without a newline and comment it out entirely (silent statement
+ *  loss; sqlcheck still passes 0 errors, only dry-run affected_rows exposes
+ *  it). Same for a ';' inside such a trailing comment: the rest of the line
+ *  is comment, so it no longer splits statements. */
 export function stripNonTicketStatements(sql: string): string[] {
   const kept: string[] = [];
   let comments: string[] = [];
@@ -436,6 +442,18 @@ export function stripNonTicketStatements(sql: string): string[] {
         body += acc;
         flush();
         acc = "";
+        // Trailing `--`/`#` comment after the `;`: everything to EOL is
+        // comment — route it into `comments` (re-attaches before the next
+        // statement) instead of letting it flow into the body and swallow the
+        // next statement. (MySQL rules: `--` starts a comment only when
+        // followed by whitespace/control char — bare `--` mid-line is an
+        // operator, but `--` at EOL comments too; `#` comments anywhere.)
+        const rest = line.slice(i + 1);
+        if (/^\s*(--(?:\s|$)|#)/.test(rest)) {
+          const c = rest.trim();
+          if (c) comments.push(c);
+          break;
+        }
         continue;
       }
       acc += ch;
